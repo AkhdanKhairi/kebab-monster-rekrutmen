@@ -209,9 +209,9 @@
 
     </main>
 
-<?php 
-  include "footerb4.php";
- ?>
+        <?php 
+        include "footerb4.php";
+        ?>
 
     <!-- JavaScript for Mobile Menu Toggle -->
     <script>

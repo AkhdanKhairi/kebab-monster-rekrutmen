@@ -9,7 +9,7 @@
   <div class="hidden md:flex items-center space-x-8 font-medium text-gray-700">
     <a href="index.php" class="hover:text-[#0a5c36]">HOMEPAGE</a>
     <a href="career.php" class="hover:text-[#0a5c36]">CAREER</a>
-    <a href="information.php" class="hover:text-[#0a5c36]">INFORMATION</a>
+    <a href="hta.php" class="hover:text-[#0a5c36]">INFORMATION</a>
     <a href="contact.php" class="hover:text-[#0a5c36]">CONTACT US</a>
     <a href="login2.php" class="bg-[#0a5c36] text-white px-4 py-2 rounded hover:bg-opacity-90">LOGIN/REGISTER</a>
   </div>

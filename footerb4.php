@@ -23,7 +23,7 @@
                 <ul class="space-y-2 text-xs sm:text-sm text-emerald-100">
                     <li><a href="#homepage" class="hover:text-white transition">HOMEPAGE</a></li>
                     <li><a href="#career" class="hover:text-white transition">CAREER</a></li>
-                    <li><a href="#information" class="hover:text-white transition">INFORMATION</a></li>
+                    <li><a href="#hta" class="hover:text-white transition">INFORMATION</a></li>
                     <li><a href="#contact" class="hover:text-white transition">HELP</a></li>
                     <li><a href="#login2" class="hover:text-white transition">LOGIN/REGISTER</a></li>
                 </ul>

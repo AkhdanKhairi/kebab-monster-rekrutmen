@@ -35,28 +35,83 @@ session_start();
 
     <div class="flex min-h-screen">
         
-        <!-- SIDEBAR -->
-        <aside class="w-20 md:w-64 bg-white border-r border-gray-200 flex flex-col py-6 px-4 space-y-6">
-            <div class="hidden md:block text-xs font-bold text-gray-400 tracking-wider uppercase">Menu Utama</div>
-            <nav class="space-y-2">
-                <a href="index.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-emerald-50 text-[#0a5c36] font-semibold text-sm">
-                    <i class="fa-solid fa-user text-base"></i>
-                    <span class="hidden md:inline">Lihat Data Diri</span>
+<?php
+// Menangkap parameter halaman yang sedang aktif dari URL
+$page = isset($_GET['page']) ? $_GET['page'] : 'profile';
+?>
+
+<!-- SIDEBAR -->
+<aside class="w-20 md:w-64 bg-white border-r border-gray-200 flex flex-col py-6 px-4 space-y-4 shadow-sm">
+    <div class="hidden md:block text-xs font-bold text-gray-400 tracking-wider uppercase px-3">Menu Utama</div>
+    
+    <nav class="space-y-1 text-sm">
+        
+        <!-- ================= MENU 1: PROFILE (DENGAN SUB-MENU) ================= -->
+        <div class="space-y-1">
+            <!-- Judul Utama Profile -->
+            <div class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 font-semibold">
+                <i class="fa-solid fa-house text-base text-[#0a5c36]"></i>
+                <span class="hidden md:inline">Profile</span>
+            </div>
+            
+            <!-- Sub-menu (Menjorok ke dalam / pl-9) -->
+            <div class="pl-4 md:pl-9 space-y-1">
+                <!-- Sub-menu 1: Lihat Profile -->
+                <a href="index.php?page=profile" class="block px-3 py-2 rounded-md text-xs transition <?php echo ($page == 'profile') ? 'bg-emerald-50 text-[#0a5c36] font-bold' : 'text-gray-600 hover:bg-gray-50'; ?>">
+                    Lihat Profile
                 </a>
-                <a href="lowongan.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-600 hover:bg-gray-50 text-sm transition">
-                    <i class="fa-solid fa-briefcase text-base"></i>
-                    <span class="hidden md:inline">Lowongan Tersedia</span>
+                <!-- Sub-menu 2: Update Profile -->
+                <a href="index.php?page=edit" class="block px-3 py-2 rounded-md text-xs transition <?php echo ($page == 'edit') ? 'bg-emerald-50 text-[#0a5c36] font-bold' : 'text-gray-600 hover:bg-gray-50'; ?>">
+                    Update Profile
                 </a>
-                <a href="status_lamaran.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-600 hover:bg-gray-50 text-sm transition">
-                    <i class="fa-solid fa-file-lines text-base"></i>
-                    <span class="hidden md:inline">Status Lamaran</span>
+                <!-- Sub-menu 3: Ganti Password -->
+                <a href="index.php?page=password" class="block px-3 py-2 rounded-md text-xs transition <?php echo ($page == 'password') ? 'bg-emerald-50 text-[#0a5c36] font-bold' : 'text-gray-600 hover:bg-gray-50'; ?>">
+                    Ganti Password
                 </a>
-                <a href="logout.php" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-600 hover:bg-gray-50 text-sm transition mt-8">
-                    <i class="fa-solid fa-right-from-bracket text-base"></i>
-                    <span class="hidden md:inline">Psikotes</span>
+            </div>
+        </div>
+
+        <!-- ================= MENU 2: KARIR (DENGAN SUB-MENU) ================= -->
+        <div class="space-y-1 pt-2">
+            <div class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 font-semibold">
+                <i class="fa-solid fa-briefcase text-base text-[#0a5c36]"></i>
+                <span class="hidden md:inline">Karir</span>
+            </div>
+            <div class="pl-4 md:pl-9 space-y-1">
+                <a href="index.php?page=karir" class="block px-3 py-2 rounded-md text-xs transition <?php echo ($page == 'karir') ? 'bg-emerald-50 text-[#0a5c36] font-bold' : 'text-gray-600 hover:bg-gray-50'; ?>">
+                    Detail Karir
                 </a>
-            </nav>
-        </aside>
+            </div>
+        </div>
+
+        <!-- ================= MENU 3: UJIAN (DENGAN SUB-MENU) ================= -->
+        <div class="space-y-1 pt-2">
+            <div class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 font-semibold">
+                <i class="fa-solid fa-file-lines text-base text-[#0a5c36]"></i>
+                <span class="hidden md:inline">Ujian</span>
+            </div>
+            <div class="pl-4 md:pl-9 space-y-1">
+                <a href="index.php?page=ujian" class="block px-3 py-2 rounded-md text-xs transition <?php echo ($page == 'ujian') ? 'bg-emerald-50 text-[#0a5c36] font-bold' : 'text-gray-600 hover:bg-gray-50'; ?>">
+                    Kerjakan Ujian
+                </a>
+            </div>
+        </div>
+
+        <!-- ================= MENU 4: UJIAN (DENGAN SUB-MENU) ================= -->
+        <div class="space-y-1 pt-2">
+            <div class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 font-semibold">
+                <i class="fa-solid fa-circle-info text-base text-[#0a5c36]"></i>
+                <span class="hidden md:inline">Informasi</span>
+            </div>
+            <div class="pl-4 md:pl-9 space-y-1">
+                <a href="index.php?page=informasi" class="block px-3 py-2 rounded-md text-xs transition <?php echo ($page == 'informasi') ? 'bg-emerald-50 text-[#0a5c36] font-bold' : 'text-gray-600 hover:bg-gray-50'; ?>">
+                    Informasi Pelamaran
+                </a>
+            </div>
+        </div>
+
+    </nav>
+</aside>
 
         <!-- KONTEN UTAMA -->
         <main class="flex-1 p-6 md:p-8 overflow-y-auto">
