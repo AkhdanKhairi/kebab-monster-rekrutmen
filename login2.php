@@ -12,10 +12,17 @@ session_start();
     <!-- FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="bg-gray-200 min-h-screen flex items-center justify-center font-sans">
+<body class="bg-gray-200 min-h-screen flex items-center justify-center font-sans relative">
+
+    <!-- TOMBOL HOME DI POJOK KIRI ATAS -->
+    <div class="absolute top-6 left-6">
+        <a href="index.php" class="inline-flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold px-4 py-2 rounded-full shadow-sm border border-gray-300 transition">
+            <i class="fa-solid fa-house text-[#0a5c36]"></i> Beranda
+        </a>
+    </div>
 
     <!-- KOTAK UTAMA LOGIN -->
-    <div class="bg-white w-full max-w-md rounded-2xl shadow-lg p-8 relative">
+    <div class="bg-white w-full max-w-md rounded-2xl shadow-lg p-8 relative mt-12 md:mt-0">
         
         <!-- TAB SWITCH (Login / Register) -->
         <div class="flex justify-center mb-8">

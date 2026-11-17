@@ -1,160 +1,80 @@
 <?php
+// Pastikan file ini dipanggil dari index.php yang memiliki session
 session_start();
-//cek level user
-if(@$_SESSION['pelamar']){
 ?>
+<div class="space-y-6 max-w-4xl mx-auto">
+    
+    <!-- BREADCRUMB & JUDUL -->
+    <div class="mb-4">
+        <p class="text-xs text-gray-500 mb-1">Profile / <span class="text-gray-700 font-semibold">Ganti Password</span></p>
+        <h1 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <i class="fa-solid fa-key text-[#0a5c36]"></i> GANTI PASSWORD
+        </h1>
+    </div>
 
+    <!-- KOTAK UTAMA FORM GANTI PASSWORD -->
+    <div class="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm space-y-6">
+        
+        <!-- KOTAK NOTE -->
+        <div class="bg-gray-600 text-white px-4 py-3 rounded-lg text-xs flex flex-col space-y-0.5 shadow-inner">
+            <span class="font-bold">Note *</span>
+            <span class="text-gray-200">Harap isi Password lama dan masukan password baru anda</span>
+        </div>
 
-<?php
-require_once ("koneksi.php");
+        <!-- FORM INPUT -->
+        <form action="proses_ganti_password.php" method="POST" class="space-y-5">
+            
+            <!-- Password Lama -->
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                <label class="md:col-span-3 text-xs font-bold text-gray-700">
+                    Password Lama <span class="text-red-500">*</span>
+                </label>
+                <div class="md:col-span-9 relative">
+                    <input type="password" name="password_lama" placeholder="Masukan password" required
+                        class="w-full bg-gray-100 border border-gray-200 rounded-lg px-4 py-3 text-xs text-gray-700 focus:outline-none focus:border-[#0a5c36] pr-12 shadow-inner">
+                    <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-emerald-700">
+                        <i class="fa-solid fa-lock text-base"></i>
+                    </div>
+                </div>
+            </div>
 
-$id_pelamar = $_SESSION["pelamar"];
+            <!-- Password Baru -->
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                <label class="md:col-span-3 text-xs font-bold text-gray-700">
+                    Password Baru <span class="text-red-500">*</span>
+                </label>
+                <div class="md:col-span-9 relative">
+                    <input type="password" name="password_baru" placeholder="Masukan password" required
+                        class="w-full bg-gray-100 border border-gray-200 rounded-lg px-4 py-3 text-xs text-gray-700 focus:outline-none focus:border-[#0a5c36] pr-12 shadow-inner">
+                    <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-emerald-700">
+                        <i class="fa-solid fa-lock text-base"></i>
+                    </div>
+                </div>
+            </div>
 
-if (isset($_POST["simpan"])) {
-	$password_sekarang =$_POST["password_sekarang"];
-	$password_baru_1 = $_POST["password_baru_1"];
-	$password_baru_2 = $_POST["password_baru_2"];
-	
-	$sql = "SELECT * FROM pelamar WHERE id_pelamar = '$id_pelamar'";
-	$query = mysqli_query($connect,$sql);
-	$pelamar = mysqli_fetch_array($query);
-	
-	// $pelamarname = $pelamar["pelamarname"];
-	if ($password_sekarang != $pelamar["password"]) {
-			
-	echo "<script>alert(\"Password lama salah!\");</script>";
-	echo "<meta http-equiv='refresh' content='1;URL=pass.php?id_pelamar=$id_pelamar'>";
-	
-	} elseif ($password_baru_1 != $password_baru_2) {
-	
-	echo "<script>alert(\"Konfirmasi password baru tidak sama!\");</script>";
-	echo "<meta http-equiv='refresh' content='1;URL=pass.php?id_pelamar=$id_pelamar'>";
-	
-	} elseif ($password_sekarang == $pelamar["password"] && $password_baru_1 == $password_baru_2) {
-	
-	$sql = "UPDATE pelamar SET password = '$password_baru_1' WHERE id_pelamar = '$id_pelamar'";
-	$query = mysqli_query($connect,$sql);
-	if (!$query){
-		die ('Gagal mengubah password' . mysqli_error());
-	}
-	
-	echo "<script>alert(\"Password pelamar berhasil diedit!\");</script>";
-	echo "<meta http-equiv='refresh' content='1;URL=index.php'>";
-		
-	} 
-}
-	
-?>
+            <!-- Konfirmasi Password Baru -->
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                <label class="md:col-span-3 text-xs font-bold text-gray-700">
+                    Konfirmasi<br>Password Baru <span class="text-red-500">*</span>
+                </label>
+                <div class="md:col-span-9 relative">
+                    <input type="password" name="konfirmasi_password" placeholder="Masukan password" required
+                        class="w-full bg-gray-100 border border-gray-200 rounded-lg px-4 py-3 text-xs text-gray-700 focus:outline-none focus:border-[#0a5c36] pr-12 shadow-inner">
+                    <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-emerald-700">
+                        <i class="fa-solid fa-lock text-base"></i>
+                    </div>
+                </div>
+            </div>
 
-<!-- <table width="350px" align="center" vspace="200px" bgcolor="#CCCCCC" cellspacing="5px">
-<tr><td align="center" colspan="2" bgcolor="#CCCCCC"><b>UBAH PASSWORD</b></td></tr>
+            <!-- TOMBOL AKSI -->
+            <div class="pt-4 flex justify-center">
+                <button type="submit" class="bg-[#0a5c36] hover:bg-opacity-90 text-white font-semibold text-xs px-8 py-3 rounded-lg shadow-sm transition">
+                    Lanjutkan
+                </button>
+            </div>
 
-</table>
- -->
+        </form>
 
+    </div>
 
-<!doctype html>
-<html lang="en">
-  <head>
-    <title>Hello, world!</title>
-    <!-- Required meta tags -->
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css" integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb" crossorigin="anonymous">
-  </head>
-  <body style="background: transparent;">
-
-	
-	<div class="container">
-	
-
-		<div class="row">
-			<div class="col-md-6 offset-md-3">
-
-					<form name="ubah_password" action="" method="post" style="margin-top: 15%;">
-
-						<table border="0">
-							<tr>
-								<td colspan="3">
-								<h1 class="text-center">Ganti Password</h1>
-								</td>
-							</tr>
-
-							<tr><td height="10"></td></tr>
-
-
-							<tr>
-								<td>Password Lama</td>
-								<td width="10"></td>
-								<td><input type="password" name="password_sekarang" class="form-control"></input>
-								</td>
-							</tr>
-
-							<tr><td height="10"></td></tr>
-
-							<tr>
-								<td>Password baru</td>
-								<td width="10"></td>
-								<td>
-									<input type="password" name="password_baru_1" class="form-control"></input>
-								</td>
-							</tr>
-
-							<tr><td height="10"></td></tr>
-
-							<tr>
-								<td>Confirm Password</td>
-								<td width="10"></td>
-								<td>
-									<input type="password" name="password_baru_2" class="form-control"></input>
-								</td>
-							</tr>
-
-							<tr><td height="10"></td></tr>
-
-							<tr>
-								<td></td>
-								<td></td>
-								<td  align="center">
-									<input type="submit" name="simpan" class="btn btn-primary" value="Simpan">
-									<input type="reset" name="reset" class="btn btn-danger" value="Hapus">
-
-								</td>
-							</tr>
-						</table>
-						
-					</form>
-			</div>
-		</div>
-	</div>
-
-
-
-    <!-- Optional JavaScript -->
-    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
-    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.3/umd/popper.min.js" integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh" crossorigin="anonymous"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/js/bootstrap.min.js" integrity="sha384-alpBpkh1PFOepccYVYDB4do5UnbKysX5WZXm3XxPqe5iKTfUKjNkCk9SaVuEZflJ" crossorigin="anonymous"></script>
-  </body>
-</html>
-
-
-
-
-<?php
-}else {
-    include "illegal.php";
-}
-?>
-
-
-
-
-
-
-
-
-
-
+</div>
