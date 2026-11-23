@@ -97,18 +97,22 @@ $result = mysqli_query($conn, $query);
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
+        gap: 12px;
         margin-bottom: 6px;
     }
     .job-title-area {
         display: flex;
         align-items: baseline;
-        gap: 12px;
+        flex-wrap: wrap;
+        gap: 10px;
+        min-width: 0;
     }
     .job-title {
         font-size: 18px;
         font-weight: 800;
         color: #111;
         letter-spacing: 0.3px;
+        overflow-wrap: break-word;
     }
     .job-divisi {
         font-size: 13px;
@@ -119,7 +123,9 @@ $result = mysqli_query($conn, $query);
     .job-meta-badges {
         display: flex;
         align-items: center;
-        gap: 10px;
+        flex-wrap: wrap;
+        gap: 8px;
+        flex-shrink: 0;
     }
     .badge-shift {
         background-color: #e0f2f1;
@@ -143,6 +149,7 @@ $result = mysqli_query($conn, $query);
         color: #333;
         font-weight: 600;
         margin-bottom: 15px;
+        overflow-wrap: break-word;
     }
 
     /* Garis Pemisah Tipis */
@@ -157,14 +164,19 @@ $result = mysqli_query($conn, $query);
         display: flex;
         justify-content: space-between;
         align-items: center;
+        gap: 12px;
     }
     .job-location {
         font-size: 13px;
         color: #555;
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         gap: 6px;
         max-width: 70%;
+        overflow-wrap: break-word;
+    }
+    .job-action-wrap {
+        flex-shrink: 0;
     }
 
     /* Tombol Liat Detail Lamaran */
@@ -178,9 +190,11 @@ $result = mysqli_query($conn, $query);
         text-decoration: none;
         display: inline-flex;
         align-items: center;
+        justify-content: center;
         gap: 6px;
         transition: background-color 0.2s;
         box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+        white-space: nowrap;
     }
     .btn-detail:hover {
         background-color: #ffa000;
@@ -194,6 +208,133 @@ $result = mysqli_query($conn, $query);
         color: #666;
         font-size: 14px;
         border: 1px solid #e0e0e0;
+    }
+
+    /* Penyesuaian Layar HP (Mirip Referensi Foto) */
+    @media (max-width: 768px) {
+        .career-banner {
+            padding: 36px 16px;
+        }
+        .career-banner h1 {
+            font-size: 24px;
+        }
+        .career-container {
+            width: 92%;
+            margin: 22px auto 45px auto;
+        }
+        .job-card-h {
+            display: flex;
+            flex-direction: column;
+            padding: 18px 16px;
+            border-radius: 14px;
+            border: 1px solid #2e7d32;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+        }
+        .job-top-row {
+            order: 1;
+            margin-bottom: 6px;
+        }
+        .job-title-area {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        .job-title {
+            font-size: 17px;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: #111827;
+            line-height: 1.25;
+        }
+        .job-divisi {
+            display: inline-block;
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 999px;
+        }
+        /* Sembunyikan badge shift & tanggal di baris atas saat mobile, pindah ke bawah */
+        .job-top-row .job-meta-badges {
+            display: none;
+        }
+
+        .job-company {
+            order: 2;
+            font-size: 12.5px;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 10px;
+            line-height: 1.45;
+        }
+
+        .job-bottom-row {
+            order: 3;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 0;
+        }
+        .job-location {
+            max-width: 100%;
+            font-size: 12.5px;
+            color: #4b5563;
+            line-height: 1.45;
+            padding-bottom: 14px;
+            border-bottom: 1px solid #eef2f0;
+        }
+
+        /* Tampilkan badge shift & tanggal di atas tombol pada mode HP */
+        .job-mobile-meta {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 14px;
+            margin-bottom: 12px;
+        }
+        .job-mobile-meta .badge-shift {
+            background-color: #dcedc8;
+            color: #2e7d32;
+            border-radius: 999px;
+            padding: 4px 12px;
+            font-size: 11.5px;
+        }
+        .job-mobile-meta .job-date {
+            background-color: #ffe0b2;
+            color: #e65100;
+            border-radius: 999px;
+            padding: 4px 12px;
+            font-size: 11.5px;
+        }
+
+        .job-action-wrap {
+            width: 100%;
+        }
+        .btn-detail {
+            width: 100%;
+            box-sizing: border-box;
+            background-color: #ffe082;
+            color: #5d4037;
+            border-radius: 10px;
+            padding: 11px 16px;
+            font-size: 13px;
+            font-weight: 700;
+            box-shadow: none;
+        }
+        .btn-detail:hover {
+            background-color: #ffd54f;
+        }
+
+        .job-divider {
+            display: none;
+        }
+    }
+
+    @media (min-width: 769px) {
+        .job-mobile-meta {
+            display: none;
+        }
     }
 </style>
 
@@ -236,9 +377,13 @@ $result = mysqli_query($conn, $query);
                         <div class="job-location">
                             <span>📍</span> <span><?php echo htmlspecialchars($row['lokasi_pekerjaan']); ?></span>
                         </div>
-                        <div>
+                        <div class="job-mobile-meta">
+                            <span class="badge-shift"><?php echo htmlspecialchars($row['shift']); ?></span>
+                            <span class="job-date"><?php echo $formatted_date; ?></span>
+                        </div>
+                        <div class="job-action-wrap">
                             <a href="detail.php?id=<?php echo $row['id_lowongan']; ?>" class="btn-detail">
-                                Liat Detail Lamaran &rarr;
+                                Lihat Detail Lamaran &rarr;
                             </a>
                         </div>
                     </div>
@@ -253,6 +398,68 @@ $result = mysqli_query($conn, $query);
         ?>
     </div>
 </div>
+
+<script>
+(function() {
+    if (!window.fetch) return;
+    fetch('api/career.php')
+        .then(res => res.ok ? res.json() : null)
+        .then(json => {
+            if (!json || !json.success || !Array.isArray(json.lowongan)) return;
+            const listEl = document.querySelector('.career-list');
+            if (!listEl) return;
+
+            const esc = (str) => String(str ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+
+            if (json.lowongan.length === 0) {
+                listEl.innerHTML = '<div class="no-job">Belum ada lowongan pekerjaan yang aktif saat ini.</div>';
+                return;
+            }
+
+            listEl.innerHTML = json.lowongan.map(row => `
+                <div class="job-card-h">
+                    <div class="job-top-row">
+                        <div class="job-title-area">
+                            <div class="job-title">${esc(row.posisi_pekerjaan)}</div>
+                            <div class="job-divisi">${esc(row.divisi)}</div>
+                        </div>
+                        <div class="job-meta-badges">
+                            <span class="badge-shift">${esc(row.shift)}</span>
+                            <span class="job-date">${esc(row.formatted_date)}</span>
+                        </div>
+                    </div>
+
+                    <div class="job-company">
+                        PT. BERKARYA INDONESIA SEJAHTERA ANDAL / Kebab Monster
+                    </div>
+
+                    <hr class="job-divider">
+
+                    <div class="job-bottom-row">
+                        <div class="job-location">
+                            <span>📍</span> <span>${esc(row.lokasi_pekerjaan)}</span>
+                        </div>
+                        <div class="job-mobile-meta">
+                            <span class="badge-shift">${esc(row.shift)}</span>
+                            <span class="job-date">${esc(row.formatted_date)}</span>
+                        </div>
+                        <div class="job-action-wrap">
+                            <a href="detail.php?id=${encodeURIComponent(row.id_lowongan)}" class="btn-detail">
+                                Lihat Detail Lamaran &rarr;
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        })
+        .catch(() => {});
+})();
+</script>
 
 <?php
 include 'includes/footer.php';

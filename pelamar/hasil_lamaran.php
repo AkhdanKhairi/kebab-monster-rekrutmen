@@ -1,61 +1,14 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
-
-
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'pelamar') {
+if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'pelamar') {
     echo "<script>alert('Silakan login terlebih dahulu!'); window.location='../login.php';</script>";
     exit();
 }
 
-$id_pelamar = $_SESSION['user_id'];
-
-// Koneksi Database
-$host = 'localhost'; 
-$user = 'root'; 
-$pass = ''; 
-$db   = 'db_kebab_monster';
-
-$conn = mysqli_connect($host, $user, $pass, $db);
-if (!$conn) {
-    die("Koneksi database gagal: " . mysqli_connect_error());
-}
-
-// 1. Ambil data lamaran terbaru
-$query_lamaran = mysqli_query($conn, "
-    SELECT l.*, lw.posisi_pekerjaan 
-    FROM lamaran l 
-    JOIN lowongan lw ON l.id_lowongan = lw.id_lowongan 
-    WHERE l.id_pelamar = $id_pelamar 
-    ORDER BY l.id_lamaran DESC LIMIT 1
-");
-$data_lamaran = mysqli_fetch_assoc($query_lamaran);
-
-// 2. Ambil data profil pelamar
-$query_pelamar = mysqli_query($conn, "SELECT * FROM pelamar WHERE id_pelamar = $id_pelamar");
-$profile = mysqli_fetch_assoc($query_pelamar);
-
-$posisi_dilamar = $data_lamaran['posisi_pekerjaan'] ?? 'Belum Melamar Posisi Apapun';
-$tgl_daftar     = isset($data_lamaran['tgl_melamar']) ? date('d-m-Y', strtotime($data_lamaran['tgl_melamar'])) : '-';
-$status_db      = $data_lamaran['status_lamaran'] ?? 'Belum Melamar';
-
-// Tentukan Styling & Pesan Berdasarkan Hasil Akhir
-$badge_status = "MENUNGGU PROSES";
-$badge_class  = "badge-pending";
-$judul_hasil  = "Evaluasi Seleksi Sedang Berlangsung";
-$pesan_hasil  = "Seluruh tahapan seleksi Anda sedang ditinjau oleh tim manajemen dan HR Kebab Monster. Mohon pantau halaman ini secara berkala untuk mengetahui pengumuman hasil akhir.";
-
-if ($status_db == 'Diterima' || $status_db == 'Selesai') {
-    $badge_status = "SELAMAT! ANDA DITERIMA";
-    $badge_class  = "badge-success";
-    $judul_hasil  = "Penawaran Kerja (Offer Letter)";
-    $pesan_hasil  = "Berdasarkan hasil keseluruhan seleksi mulai dari seleksi berkas, psikotes, hingga wawancara, kami dengan senang hati mengumumkan bahwa Anda dinyatakan **LULUS dan DITERIMA** di Kebab Monster untuk posisi <b>" . htmlspecialchars($posisi_dilamar) . "</b>.<br><br>Tim HR kami akan segera mengirimkan email resmi berisi rincian kontrak kerja, jadwal onboarding, serta instruksi penempatan lebih lanjut.";
-} elseif ($status_db == 'Ditolak' || $status_db == 'Tidak Lolos') {
-    $badge_status = "MOHON MAAF, BELUM BERUNTUNG";
-    $badge_class  = "badge-danger";
-    $judul_hasil  = "Hasil Seleksi Rekrutmen";
-    $pesan_hasil  = "Terima kasih banyak atas antusiasme dan waktu yang telah Anda luangkan untuk mengikuti proses seleksi di Kebab Monster.<br><br>Setelah melalui pertimbangan yang matang dari tim penilai, dengan berat hati kami menyampaikan bahwa saat ini kami belum dapat melanjutkan proses rekrutmen Anda untuk posisi <b>" . htmlspecialchars($posisi_dilamar) . "</b>. Kami mendoakan kesuksesan yang terbaik untuk karier Anda di masa depan.";
-}
+$initial_id_lamaran = isset($_GET['id_lamaran']) ? intval($_GET['id_lamaran']) : 0;
 
 include '../includes/header_pelamar.php';
 ?>
@@ -100,6 +53,18 @@ include '../includes/header_pelamar.php';
     
     .lamaran-info-box { text-align: left; }
     .lamaran-info-box h4 { font-size: 14px; font-weight: 800; color: #1b5e20; margin-bottom: 10px; }
+    .lamaran-switcher {
+        width: 100%;
+        padding: 7px 10px;
+        margin-bottom: 12px;
+        border: 1.5px solid #1b5e20;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #1b5e20;
+        background: #f1f8e9;
+        cursor: pointer;
+    }
     .info-row { font-size: 12px; margin-bottom: 10px; color: #444; }
     .info-row span { font-weight: 700; color: #111; display: block; margin-top: 2px; }
 
@@ -157,28 +122,29 @@ include '../includes/header_pelamar.php';
     .btn-back-career:hover {
         background-color: #2e7d32;
     }
+
+    @media (max-width: 850px) {
+        .info-page-container { flex-direction: column; padding: 14px; gap: 20px; }
+        .profile-sidebar-card { width: 100%; box-sizing: border-box; }
+        .result-main-content { padding: 24px 18px; }
+    }
 </style>
 
 <div class="info-page-container">
 
     <!-- SIDEBAR PROFIL -->
     <div class="profile-sidebar-card">
-        <div class="profile-avatar">
-            <?php if (!empty($profile['pas_foto'])): ?>
-                <img src="../uploads/<?php echo htmlspecialchars($profile['pas_foto']); ?>" alt="Foto Profil">
-            <?php else: ?>
-                👤
-            <?php endif; ?>
-        </div>
-        <div class="profile-name"><?php echo htmlspecialchars($profile['nama_lengkap'] ?? 'Nama Pelamar'); ?></div>
-        <div class="profile-email"><?php echo htmlspecialchars($profile['email'] ?? '-'); ?></div>
-        <div class="profile-phone"><?php echo htmlspecialchars($profile['no_telepon'] ?? '-'); ?></div>
+        <div id="hasil-avatar" class="profile-avatar">👤</div>
+        <div id="hasil-name" class="profile-name">Memuat...</div>
+        <div id="hasil-email" class="profile-email">-</div>
+        <div id="hasil-phone" class="profile-phone">-</div>
 
         <div class="lamaran-info-box">
             <h4>LAMARAN</h4>
-            <div class="info-row">Posisi Dilamar: <span><?php echo htmlspecialchars($posisi_dilamar); ?></span></div>
-            <div class="info-row">Tanggal Daftar: <span><?php echo $tgl_daftar; ?></span></div>
-            <div class="info-row">Status Tahap: <span><?php echo htmlspecialchars($status_db); ?></span></div>
+            <select id="hasil-lamaran-switcher" class="lamaran-switcher" style="display: none;"></select>
+            <div class="info-row">Posisi Dilamar: <span id="hasil-posisi">Belum Melamar Posisi Apapun</span></div>
+            <div class="info-row">Tanggal Daftar: <span id="hasil-tgl-daftar">-</span></div>
+            <div class="info-row">Status Tahap: <span id="hasil-status-tahap">Belum Melamar</span></div>
         </div>
     </div>
 
@@ -187,14 +153,14 @@ include '../includes/header_pelamar.php';
         <h2 class="result-title">PENGUMUMAN HASIL AKHIR SELEKSI</h2>
 
         <!-- Badge Indikator Status -->
-        <div class="status-badge-container <?php echo $badge_class; ?>">
-            <?php echo $badge_status; ?>
+        <div id="hasil-badge" class="status-badge-container badge-pending">
+            MENUNGGU PROSES
         </div>
 
         <!-- Kotak Informasi Hasil -->
         <div class="result-card-box">
-            <h3><?php echo $judul_hasil; ?></h3>
-            <p><?php echo $pesan_hasil; ?></p>
+            <h3 id="hasil-judul">Evaluasi Seleksi Sedang Berlangsung</h3>
+            <p id="hasil-pesan">Memuat pengumuman hasil seleksi...</p>
         </div>
 
         <div class="btn-action-container">
@@ -204,7 +170,140 @@ include '../includes/header_pelamar.php';
 
 </div>
 
-<?php 
-mysqli_close($conn);
-include '../includes/footer_pelamar.php'; 
-?>
+<script>
+    const INITIAL_ID_LAMARAN = <?php echo json_encode($initial_id_lamaran); ?>;
+    let cachedHasilLamaranList = [];
+
+    function escapeHtml(str) {
+        return String(str ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function nl2brSafe(str) {
+        return escapeHtml(str).replace(/\r\n|\r|\n/g, '<br>');
+    }
+
+    function formatTanggalIndo(dtRaw, fallback = '-') {
+        if (!dtRaw) return fallback;
+        const clean = String(dtRaw).split(' ')[0];
+        const parts = clean.split('-');
+        if (parts.length !== 3) return clean;
+        return `${parts[2].padStart(2, '0')}-${parts[1].padStart(2, '0')}-${parts[0]}`;
+    }
+
+    function renderHasilLamaran(dataLamaran) {
+        const posisiDilamar  = dataLamaran?.posisi_pekerjaan || 'Belum Melamar Posisi Apapun';
+        const tglDaftar      = formatTanggalIndo(dataLamaran?.tgl_melamar, '-');
+        const statusLamaran  = dataLamaran?.status_lamaran || 'Belum Melamar';
+        const hasilAdmin     = (dataLamaran?.hasil_akhir_efektif || '').trim();
+        const pesanAdmin     = (dataLamaran?.pesan_hasil_akhir_efektif || '').trim();
+
+        const statusEfektif       = hasilAdmin !== '' ? hasilAdmin : statusLamaran;
+        const statusTampilSidebar = hasilAdmin !== '' ? hasilAdmin : statusLamaran;
+
+        document.getElementById('hasil-posisi').textContent       = posisiDilamar;
+        document.getElementById('hasil-tgl-daftar').textContent   = tglDaftar;
+        document.getElementById('hasil-status-tahap').textContent = statusTampilSidebar;
+
+        let badgeStatus = "MENUNGGU PROSES";
+        let badgeClass  = "badge-pending";
+        let judulHasil  = "Evaluasi Seleksi Sedang Berlangsung";
+        let pesanHasil  = "Seluruh tahapan seleksi Anda sedang ditinjau oleh tim manajemen dan HR Kebab Monster. Mohon pantau halaman ini secara berkala untuk mengetahui pengumuman hasil akhir.";
+
+        const lowerStatus = statusEfektif.toLowerCase();
+
+        if (lowerStatus === 'diterima' || lowerStatus === 'selesai') {
+            badgeStatus = "SELAMAT! ANDA DITERIMA";
+            badgeClass  = "badge-success";
+            judulHasil  = "Penawaran Kerja (Offer Letter)";
+
+            if (pesanAdmin !== '') {
+                pesanHasil = nl2brSafe(pesanAdmin);
+            } else {
+                pesanHasil = `Berdasarkan hasil keseluruhan seleksi mulai dari seleksi berkas, psikotes, hingga wawancara, kami dengan senang hati mengumumkan bahwa Anda dinyatakan <strong>LULUS dan DITERIMA</strong> di Kebab Monster untuk posisi <b>${escapeHtml(posisiDilamar)}</b>.<br><br>Tim HR kami akan segera mengirimkan email resmi berisi rincian kontrak kerja, jadwal onboarding, serta instruksi penempatan lebih lanjut.`;
+            }
+        } else if (
+            lowerStatus === 'tidak diterima' ||
+            lowerStatus === 'ditolak' ||
+            lowerStatus === 'tidak lolos'
+        ) {
+            badgeStatus = "MOHON MAAF, BELUM BERUNTUNG";
+            badgeClass  = "badge-danger";
+            judulHasil  = "Hasil Seleksi Rekrutmen";
+
+            if (pesanAdmin !== '') {
+                pesanHasil = nl2brSafe(pesanAdmin);
+            } else {
+                pesanHasil = `Terima kasih banyak atas antusiasme dan waktu yang telah Anda luangkan untuk mengikuti proses seleksi di Kebab Monster.<br><br>Setelah melalui pertimbangan yang matang dari tim penilai, dengan berat hati kami menyampaikan bahwa saat ini kami belum dapat melanjutkan proses rekrutmen Anda untuk posisi <b>${escapeHtml(posisiDilamar)}</b>. Kami mendoakan kesuksesan yang terbaik untuk karier Anda di masa depan.`;
+            }
+        } else if (pesanAdmin !== '') {
+            pesanHasil = nl2brSafe(pesanAdmin);
+        }
+
+        const badgeEl = document.getElementById('hasil-badge');
+        badgeEl.className   = `status-badge-container ${badgeClass}`;
+        badgeEl.textContent = badgeStatus;
+
+        document.getElementById('hasil-judul').textContent = judulHasil;
+        document.getElementById('hasil-pesan').innerHTML   = pesanHasil;
+    }
+
+    async function loadHasilLamaran() {
+        try {
+            const url = INITIAL_ID_LAMARAN > 0
+                ? `../api/pelamar/lamaran.php?id_lamaran=${encodeURIComponent(INITIAL_ID_LAMARAN)}`
+                : '../api/pelamar/lamaran.php';
+
+            const res = await fetch(url, { credentials: 'same-origin' });
+            const result = await res.json();
+
+            if (!res.ok || !result.success) {
+                if (res.status === 401) {
+                    alert(result.message || 'Silakan login terlebih dahulu!');
+                    window.location.href = '../login.php';
+                    return;
+                }
+                alert(result.message || 'Gagal memuat hasil lamaran.');
+                return;
+            }
+
+            const pelamar          = result.data?.pelamar || {};
+            cachedHasilLamaranList = result.data?.lamaran_list || [];
+            const selected         = result.data?.selected_lamaran || null;
+
+            if (pelamar.pas_foto_url) {
+                document.getElementById('hasil-avatar').innerHTML =
+                    `<img src="${pelamar.pas_foto_url}" alt="Foto Profil">`;
+            }
+            document.getElementById('hasil-name').textContent  = pelamar.nama_lengkap || 'Nama Pelamar';
+            document.getElementById('hasil-email').textContent = pelamar.email || '-';
+            document.getElementById('hasil-phone').textContent = pelamar.no_telepon || '-';
+
+            const switcher = document.getElementById('hasil-lamaran-switcher');
+            if (cachedHasilLamaranList.length > 1) {
+                switcher.innerHTML = cachedHasilLamaranList.map(item => {
+                    const tgl = formatTanggalIndo(item.tgl_melamar, '');
+                    const isSel = selected && Number(item.id_lamaran) === Number(selected.id_lamaran) ? 'selected' : '';
+                    return `<option value="${item.id_lamaran}" ${isSel}>${item.posisi_pekerjaan} (${tgl})</option>`;
+                }).join('');
+                switcher.style.display = 'block';
+                switcher.onchange = function() {
+                    const chosen = cachedHasilLamaranList.find(x => Number(x.id_lamaran) === Number(this.value)) || null;
+                    renderHasilLamaran(chosen);
+                };
+            }
+
+            renderHasilLamaran(selected);
+        } catch (err) {
+            alert('Terjadi kesalahan saat memuat pengumuman hasil seleksi.');
+        }
+    }
+
+    loadHasilLamaran();
+</script>
+
+<?php include '../includes/footer_pelamar.php'; ?>

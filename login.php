@@ -1,83 +1,6 @@
 <?php
 session_start();
 include 'includes/header.php';
-
-$pesan_login    = "";
-$pesan_register = "";
-$active_tab     = "login"; // Default tab yang aktif
-
-// Logika jika form dikirimkan
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    // Koneksi menggunakan database: db_kebab_monster
-    $host = 'localhost'; $user = 'root'; $pass = ''; $db = 'db_kebab_monster';
-    $conn = mysqli_connect($host, $user, $pass, $db);
-
-    if (!$conn) {
-        die("Koneksi database gagal: " . mysqli_connect_error());
-    }
-
-    // Cek apakah yang dikirim adalah form Login
-    if (isset($_POST['action']) && $_POST['action'] == 'login') {
-        $active_tab = "login";
-        $identifier = trim($_POST['identifier']);
-        $password_input = trim($_POST['password']); // Password mentah untuk admin (plain text di db)
-        $password_md5   = md5($password_input);     // Password MD5 untuk pelamar
-
-        // 1. Cek tabel ADMIN (menggunakan tabel 'admin' dan password plain-text)
-        $query_admin = "SELECT * FROM admin WHERE username = '$identifier' AND password = '$password_input'";
-        $result_admin = mysqli_query($conn, $query_admin);
-
-        if ($result_admin && mysqli_num_rows($result_admin) == 1) {
-            $row = mysqli_fetch_assoc($result_admin);
-            $_SESSION['user_id'] = $row['id_admin'];
-            $_SESSION['nama']    = $row['nama'];
-            $_SESSION['email']   = $row['username'];
-            $_SESSION['role']    = 'admin';
-
-            echo "<script>alert('Login berhasil sebagai Admin/HR!'); window.location='admin/dashboard.php';</script>";
-            exit();
-        }
-
-        // 2. Cek tabel PELAMAR (menggunakan password MD5)
-        $query_pelamar = "SELECT * FROM pelamar WHERE email = '$identifier' AND password = '$password_md5'";
-        $result_pelamar = mysqli_query($conn, $query_pelamar);
-
-        if ($result_pelamar && mysqli_num_rows($result_pelamar) == 1) {
-            $row = mysqli_fetch_assoc($result_pelamar);
-            $_SESSION['user_id'] = $row['id_pelamar'];
-            $_SESSION['nama']    = $row['nama_lengkap'];
-            $_SESSION['email']   = $row['email'];
-            $_SESSION['role']    = 'pelamar';
-
-            echo "<script>alert('Login berhasil!'); window.location='pelamar/profile_view.php';</script>";
-            exit();
-        }
-
-        $pesan_login = "<div class='alert error'>Email/Username atau Password salah!</div>";
-    }
-
-    // Cek apakah yang dikirim adalah form Register Pelamar
-    if (isset($_POST['action']) && $_POST['action'] == 'register') {
-        $active_tab = "register";
-        $nama     = trim($_POST['nama_lengkap']);
-        $email    = trim($_POST['email']);
-        $password = md5($_POST['password']);
-        $telepon  = trim($_POST['no_telepon']);
-
-        $cek = mysqli_query($conn, "SELECT * FROM pelamar WHERE email = '$email'");
-        if (mysqli_num_rows($cek) > 0) {
-            $pesan_register = "<div class='alert error'>Email sudah terdaftar, silakan gunakan email lain!</div>";
-        } else {
-            $query = "INSERT INTO pelamar (nama_lengkap, email, password, no_telepon) VALUES ('$nama', '$email', '$password', '$telepon')";
-            if (mysqli_query($conn, $query)) {
-                $pesan_register = "<div class='alert success'>Registrasi berhasil! Silakan pindah ke tab Login.</div>";
-            } else {
-                $pesan_register = "<div class='alert error'>Terjadi kesalahan sistem.</div>";
-            }
-        }
-    }
-    mysqli_close($conn);
-}
 ?>
 
 <style>
@@ -143,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         color: #333;
         margin-bottom: 6px;
     }
-    
+
     .password-container {
         position: relative;
     }
@@ -185,8 +108,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         transition: background 0.2s;
         margin-top: 10px;
     }
-    .btn-auth:hover {
+    .btn-auth:hover:not(:disabled) {
         background-color: #00332c;
+    }
+    .btn-auth:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
     }
 
     .alert {
@@ -203,20 +130,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 <div class="auth-wrapper">
     <div class="auth-switch-tabs">
-        <button type="button" class="switch-btn <?php echo ($active_tab == 'login') ? 'active' : ''; ?>" onclick="switchTab('login')">MASUK (LOGIN)</button>
-        <button type="button" class="switch-btn <?php echo ($active_tab == 'register') ? 'active' : ''; ?>" onclick="switchTab('register')">DAFTAR AKUN BARU</button>
+        <button type="button" class="switch-btn active" onclick="switchTab('login')">MASUK (LOGIN)</button>
+        <button type="button" class="switch-btn" onclick="switchTab('register')">DAFTAR AKUN BARU</button>
     </div>
 
     <div class="auth-form-content">
         <!-- FORM LOGIN -->
-        <div id="section-login" class="form-section <?php echo ($active_tab == 'login') ? 'active' : ''; ?>">
+        <div id="section-login" class="form-section active">
             <h2>Masuk ke Akun</h2>
-            <?php echo $pesan_login; ?>
-            <form action="" method="POST">
-                <input type="hidden" name="action" value="login">
+            <div id="login-alert"></div>
+            <form id="form-login">
                 <div class="form-group">
                     <label>Email (Pelamar) / Username (HR/Admin)</label>
-                    <input type="text" name="identifier" class="form-control" style="padding-right: 14px;" placeholder="Masukkan email atau username" required>
+                    <input type="text" name="identifier" id="login-identifier" class="form-control" style="padding-right: 14px;" placeholder="Masukkan email atau username" required>
                 </div>
                 <div class="form-group">
                     <label>Password</label>
@@ -225,27 +151,26 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         <button type="button" class="toggle-password" onclick="togglePassword('login-password', this)">👁️</button>
                     </div>
                 </div>
-                <button type="submit" class="btn-auth">Masuk Sekarang</button>
+                <button type="submit" id="btn-login" class="btn-auth">Masuk Sekarang</button>
             </form>
         </div>
 
         <!-- FORM REGISTER -->
-        <div id="section-register" class="form-section <?php echo ($active_tab == 'register') ? 'active' : ''; ?>">
+        <div id="section-register" class="form-section">
             <h2>Registrasi Pelamar</h2>
-            <?php echo $pesan_register; ?>
-            <form action="" method="POST">
-                <input type="hidden" name="action" value="register">
+            <div id="register-alert"></div>
+            <form id="form-register">
                 <div class="form-group">
                     <label>Nama Lengkap</label>
-                    <input type="text" name="nama_lengkap" class="form-control" style="padding-right: 14px;" placeholder="Masukkan nama lengkap" required>
+                    <input type="text" name="nama_lengkap" id="reg-nama" class="form-control" style="padding-right: 14px;" placeholder="Masukkan nama lengkap" required>
                 </div>
                 <div class="form-group">
                     <label>Alamat Email</label>
-                    <input type="email" name="email" class="form-control" style="padding-right: 14px;" placeholder="nama@email.com" required>
+                    <input type="email" name="email" id="reg-email" class="form-control" style="padding-right: 14px;" placeholder="nama@email.com" required>
                 </div>
                 <div class="form-group">
                     <label>Nomor Telepon / WhatsApp</label>
-                    <input type="text" name="no_telepon" class="form-control" style="padding-right: 14px;" placeholder="08xxxxxxxxxx" required>
+                    <input type="text" name="no_telepon" id="reg-telepon" class="form-control" style="padding-right: 14px;" placeholder="08xxxxxxxxxx" required>
                 </div>
                 <div class="form-group">
                     <label>Password</label>
@@ -254,7 +179,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         <button type="button" class="toggle-password" onclick="togglePassword('register-password', this)">👁️</button>
                     </div>
                 </div>
-                <button type="submit" class="btn-auth">Daftar Sebagai Pelamar</button>
+                <button type="submit" id="btn-register" class="btn-auth">Daftar Sebagai Pelamar</button>
             </form>
         </div>
     </div>
@@ -284,6 +209,95 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             btnElement.textContent = "👁️";
         }
     }
+
+    function showAlert(containerId, type, message) {
+        const box = document.getElementById(containerId);
+        box.innerHTML = `<div class="alert ${type}">${message}</div>`;
+    }
+
+    // Kirim data login ke api/auth/login.php
+    document.getElementById('form-login').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btn-login');
+        const identifier = document.getElementById('login-identifier').value.trim();
+        const password = document.getElementById('login-password').value;
+
+        btn.disabled = true;
+        btn.textContent = 'Memproses...';
+        document.getElementById('login-alert').innerHTML = '';
+
+        try {
+            const res = await fetch('api/auth/login.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ identifier, password })
+            });
+
+            const result = await res.json();
+
+            if (res.ok && result.success) {
+                showAlert('login-alert', 'success', result.message);
+                const role = result.data?.user?.role;
+                setTimeout(() => {
+                    if (role === 'admin') {
+                        window.location.href = 'admin/dashboard.php';
+                    } else {
+                        window.location.href = 'pelamar/profile_view.php';
+                    }
+                }, 500);
+            } else {
+                showAlert('login-alert', 'error', result.message || 'Login gagal.');
+                btn.disabled = false;
+                btn.textContent = 'Masuk Sekarang';
+            }
+        } catch (err) {
+            showAlert('login-alert', 'error', 'Gagal menghubungi server API.');
+            btn.disabled = false;
+            btn.textContent = 'Masuk Sekarang';
+        }
+    });
+
+    // Kirim data registrasi ke api/auth/register.php
+    document.getElementById('form-register').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btn-register');
+        const nama_lengkap = document.getElementById('reg-nama').value.trim();
+        const email = document.getElementById('reg-email').value.trim();
+        const no_telepon = document.getElementById('reg-telepon').value.trim();
+        const password = document.getElementById('register-password').value;
+
+        btn.disabled = true;
+        btn.textContent = 'Mendaftarkan...';
+        document.getElementById('register-alert').innerHTML = '';
+
+        try {
+            const res = await fetch('api/auth/register.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ nama_lengkap, email, no_telepon, password })
+            });
+
+            const result = await res.json();
+
+            if (res.ok && result.success) {
+                showAlert('register-alert', 'success', result.message);
+                document.getElementById('form-register').reset();
+                setTimeout(() => {
+                    switchTab('login');
+                    showAlert('login-alert', 'success', result.message);
+                }, 1200);
+            } else {
+                showAlert('register-alert', 'error', result.message || 'Registrasi gagal.');
+            }
+        } catch (err) {
+            showAlert('register-alert', 'error', 'Gagal menghubungi server API.');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Daftar Sebagai Pelamar';
+        }
+    });
 </script>
 
 <?php include 'includes/footer.php'; ?>

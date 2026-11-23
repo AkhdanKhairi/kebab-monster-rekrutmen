@@ -103,6 +103,10 @@ include 'includes/header.php';
         flex-shrink: 0;
     }
 
+    .step-text {
+        min-width: 0;
+    }
+
     .step-text h4 {
         font-size: 14px;
         font-weight: 700;
@@ -114,6 +118,7 @@ include 'includes/header.php';
         font-size: 12.5px;
         color: #555;
         line-height: 1.5;
+        overflow-wrap: break-word;
     }
 
     /* Grid Informasi Tambahan (Anti Penipuan) */
@@ -131,6 +136,7 @@ include 'includes/header.php';
         border-radius: 8px;
         padding: 30px;
         box-shadow: 0 4px 6px rgba(0,0,0,0.03);
+        min-width: 0;
     }
     .info-box h3 {
         color: #004d40;
@@ -145,6 +151,7 @@ include 'includes/header.php';
         font-size: 13.5px;
         color: #444;
         line-height: 1.7;
+        overflow-wrap: break-word;
     }
     .info-box ul {
         padding-left: 20px;
@@ -189,15 +196,61 @@ include 'includes/header.php';
         font-size: 13.5px;
         color: #555;
         line-height: 1.6;
+        overflow-wrap: break-word;
     }
 
-    /* Responsif untuk Layar Kecil */
+    /* Responsif untuk Layar Tablet & HP */
     @media (max-width: 992px) {
         .steps-grid {
             grid-template-columns: 1fr;
+            gap: 20px;
+            margin-bottom: 40px;
         }
         .info-bottom-grid {
             grid-template-columns: 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .info-banner {
+            padding: 40px 16px;
+        }
+        .info-banner h1 {
+            font-size: 25px;
+        }
+        .info-container {
+            width: 92%;
+            margin: 24px auto 45px auto;
+        }
+        .section-main-title {
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+        .step-header {
+            padding: 16px;
+            font-size: 14px;
+        }
+        .step-body {
+            padding: 18px;
+            gap: 16px;
+        }
+        .step-item {
+            gap: 12px;
+        }
+        .info-box {
+            padding: 20px 16px;
+        }
+        .info-box h3 {
+            font-size: 16px;
+        }
+        .faq-section {
+            padding: 20px 16px;
+        }
+        .faq-section h2 {
+            font-size: 19px;
+            margin-bottom: 18px;
         }
     }
 </style>
@@ -372,6 +425,15 @@ include 'includes/header.php';
     </div>
 
 </div>
+
+<script>
+(function() {
+    if (!window.fetch) return;
+    fetch('api/information.php')
+        .then(res => res.ok ? res.json() : null)
+        .catch(() => {});
+})();
+</script>
 
 <?php
 // Sertakan footer

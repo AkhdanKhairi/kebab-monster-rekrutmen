@@ -1,0 +1,83 @@
+
+/* =========================================================
+   GLOBAL MOBILE-FRIENDLY OVERRIDE
+   ========================================================= */
+
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+html, body {
+    max-width: 100%;
+    overflow-x: clip;
+}
+
+img, video, iframe, canvas, svg {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Tabel otomatis bisa di-scroll ke samping tanpa bikin layar melar */
+table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Aturan otomatis saat dibuka di layar HP / tablet kecil */
+@media (max-width: 768px) {
+    /* 1. Semua layout Grid (2 kolom, 3 kolom, 6 kolom, dll.) otomatis turun jadi 1 kolom */
+    [style*="grid-template-columns"],
+    .fraud-warning-container,
+    .why-grid,
+    .visimisi-grid,
+    .grid-2,
+    .grid-3,
+    .grid-4 {
+        grid-template-columns: 1fr !important;
+        gap: 16px !important;
+    }
+
+    /* Khusus grid kotak kota/icon kecil jadikan 2 kolom */
+    .cities-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 12px !important;
+    }
+
+    /* 2. Semua Flexbox berjejer (seperti kartu profil + kartu status lamaran) otomatis turun ke bawah */
+    .main-layout,
+    .content-area > div[style*="display: flex"],
+    .content-area > div > div[style*="display: flex"] {
+        flex-wrap: wrap !important;
+    }
+
+    /* Paksa semua child langsung di dalam container flex utama agar mengambil lebar penuh */
+    .content-area > div > div {
+        max-width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    /* 3. Cegah teks panjang atau card keluar batas layar */
+    .content-area,
+    .content-wrapper,
+    .container,
+    .card,
+    .box {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding-left: 14px !important;
+        padding-right: 14px !important;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+    }
+
+    /* 4. Form & tombol nyaman disentuh di HP */
+    input:not([type="checkbox"]):not([type="radio"]),
+    select,
+    textarea {
+        width: 100% !important;
+        max-width: 100% !important;
+        font-size: 16px !important; /* Mencegah auto-zoom di iPhone/Safari */
+    }
+}

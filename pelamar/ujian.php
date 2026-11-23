@@ -1,67 +1,11 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
-// Validasi akses khusus pelamar
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'pelamar') {
+if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'pelamar') {
     echo "<script>alert('Silakan login terlebih dahulu sebagai pelamar!'); window.location='../login.php';</script>";
     exit();
-}
-
-$id_pelamar = $_SESSION['user_id'];
-
-// Koneksi Database
-$host = 'localhost'; 
-$user = 'root'; 
-$pass = ''; 
-$db   = 'db_kebab_monster';
-
-$conn = mysqli_connect($host, $user, $pass, $db);
-if (!$conn) {
-    die("Koneksi database gagal: " . mysqli_connect_error());
-}
-
-
-// 1. Ambil data profil pelamar
-$query_pelamar = mysqli_query($conn, "SELECT * FROM pelamar WHERE id_pelamar = $id_pelamar");
-$profile = mysqli_fetch_assoc($query_pelamar);
-
-// 2. Ambil data lamaran untuk mengetahui posisi yang dilamar (Crew atau Staff)
-$query_lamaran = mysqli_query($conn, "
-    SELECT l.*, lw.posisi_pekerjaan, lw.divisi 
-    FROM lamaran l 
-    JOIN lowongan lw ON l.id_lowongan = lw.id_lowongan 
-    WHERE l.id_pelamar = $id_pelamar 
-    ORDER BY l.id_lamaran DESC LIMIT 1
-");
-$data_lamaran = mysqli_fetch_assoc($query_lamaran);
-
-// Tentukan kategori posisi pelamar (Default 'Semua' jika belum melamar)
-$kategori_posisi = 'Semua';
-if ($data_lamaran) {
-    $posisi_lower = strtolower($data_lamaran['posisi_pekerjaan']);
-    if (strpos($posisi_lower, 'crew') !== false || strpos($posisi_lower, 'store') !== false) {
-        $kategori_posisi = 'Crew';
-    } else {
-        $kategori_posisi = 'Staff';
-    }
-}
-
-// 3. Ambil daftar modul ujian yang sesuai dengan kategori posisi atau 'Semua'
-$query_modul = mysqli_query($conn, "
-    SELECT * FROM modul_ujian 
-    WHERE kategori_posisi = '$kategori_posisi' OR kategori_posisi = 'Semua' 
-    ORDER BY urutan ASC
-");
-
-// Masukkan modul ke dalam array untuk memudahkan pengecekan status beruntun
-$daftar_modul = [];
-while ($row = mysqli_fetch_assoc($query_modul)) {
-    $id_modul = $row['id_modul'];
-    $q_riwayat = mysqli_query($conn, "SELECT * FROM riwayat_ujian_pelamar WHERE id_pelamar = $id_pelamar AND id_modul = $id_modul");
-    $riwayat = mysqli_fetch_assoc($q_riwayat);
-    
-    $row['status_pengerjaan'] = $riwayat['status_pengerjaan'] ?? 'Belum Mulai';
-    $daftar_modul[] = $row;
 }
 
 include '../includes/header_pelamar.php';
@@ -76,8 +20,14 @@ include '../includes/header_pelamar.php';
         display: flex;
         gap: 30px;
     }
+    .ujian-page-container *,
+    .ujian-page-container *::before,
+    .ujian-page-container *::after {
+        box-sizing: border-box;
+    }
     .profile-sidebar-card {
         width: 320px;
+        flex-shrink: 0;
         background: #fff;
         border: 1.5px solid #1b5e20;
         border-radius: 16px;
@@ -100,22 +50,25 @@ include '../includes/header_pelamar.php';
         border: 2px solid #1b5e20;
     }
     .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .profile-name { font-size: 16px; font-weight: 800; color: #111; margin-bottom: 2px; }
-    .profile-email { font-size: 12.5px; color: #666; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 12px; }
+    .profile-name { font-size: 16px; font-weight: 800; color: #111; margin-bottom: 2px; overflow-wrap: anywhere; }
+    .profile-email { font-size: 12.5px; color: #666; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 12px; overflow-wrap: anywhere; }
     
     .modul-sidebar-list { list-style: none; padding: 0; margin: 0; text-align: left; }
     .modul-sidebar-list li {
         font-size: 13px;
         font-weight: 600;
-        padding: 6px 0;
+        padding: 7px 0;
         border-bottom: 1px dashed #eee;
         display: flex;
         justify-content: space-between;
+        align-items: center;
+        gap: 8px;
         color: #444;
     }
 
     .ujian-main-content {
         flex: 1;
+        min-width: 0;
         background: #fff;
         border: 1.5px solid #1b5e20;
         border-radius: 16px;
@@ -133,23 +86,34 @@ include '../includes/header_pelamar.php';
         display: flex;
         justify-content: space-between;
         align-items: center;
+        gap: 16px;
         box-shadow: 0 2px 6px rgba(0,0,0,0.02);
     }
-    .modul-info h3 { font-size: 16px; font-weight: 800; color: #111; margin-bottom: 4px; }
-    .modul-info p { font-size: 13px; color: #555; margin: 0; }
+    .modul-info {
+        min-width: 0;
+        flex: 1;
+    }
+    .modul-info h3 { font-size: 16px; font-weight: 800; color: #111; margin: 0 0 4px 0; line-height: 1.35; overflow-wrap: anywhere; }
+    .modul-info p { font-size: 13px; color: #555; margin: 0; line-height: 1.45; }
+
+    .modul-action {
+        flex-shrink: 0;
+    }
 
     .btn-mulai {
         background-color: #c8e6c9;
         color: #1b5e20;
         border: 1.5px solid #2e7d32;
-        padding: 8px 18px;
+        padding: 9px 18px;
         border-radius: 20px;
         font-size: 13px;
         font-weight: 700;
         text-decoration: none;
         display: inline-flex;
         align-items: center;
+        justify-content: center;
         gap: 6px;
+        white-space: nowrap;
         transition: background 0.2s;
     }
     .btn-mulai:hover { background-color: #a5d6a7; }
@@ -158,14 +122,16 @@ include '../includes/header_pelamar.php';
         background-color: #fff9c4;
         color: #f57f17;
         border: 1.5px solid #fbc02d;
-        padding: 8px 18px;
+        padding: 9px 18px;
         border-radius: 20px;
         font-size: 13px;
         font-weight: 700;
         text-decoration: none;
         display: inline-flex;
         align-items: center;
+        justify-content: center;
         gap: 6px;
+        white-space: nowrap;
     }
     .btn-hasil:hover { background-color: #fff176; }
 
@@ -173,83 +139,179 @@ include '../includes/header_pelamar.php';
         background-color: #e0e0e0;
         color: #757575;
         border: 1.5px solid #bdbdbd;
-        padding: 8px 18px;
+        padding: 9px 18px;
         border-radius: 20px;
         font-size: 13px;
         font-weight: 700;
         cursor: not-allowed;
         display: inline-flex;
         align-items: center;
+        justify-content: center;
         gap: 6px;
+        white-space: nowrap;
+    }
+
+    .empty-modul {
+        text-align: center;
+        padding: 28px 16px;
+        color: #666;
+        font-size: 14px;
+        border: 1px dashed #cbd5e1;
+        border-radius: 12px;
+    }
+
+    @media (max-width: 900px) {
+        .ujian-page-container {
+            flex-direction: column;
+            margin: 12px auto;
+            padding: 14px;
+            gap: 18px;
+        }
+        .profile-sidebar-card {
+            width: 100%;
+            padding: 20px 16px;
+        }
+        .ujian-main-content {
+            padding: 20px 16px;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .ujian-title {
+            font-size: 19px;
+            margin-bottom: 18px;
+        }
+        .profile-avatar {
+            width: 82px;
+            height: 82px;
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+        .modul-card {
+            flex-direction: column;
+            align-items: stretch;
+            padding: 16px;
+            gap: 14px;
+        }
+        .modul-info h3 {
+            font-size: 15px;
+        }
+        .modul-action {
+            width: 100%;
+        }
+        .btn-mulai,
+        .btn-hasil,
+        .btn-locked {
+            width: 100%;
+            min-height: 42px;
+        }
     }
 </style>
 
 <div class="ujian-page-container">
-
-    <!-- SIDEBAR PROFIL & PROGRES -->
     <div class="profile-sidebar-card">
-        <div class="profile-avatar">
-            <?php if (!empty($profile['pas_foto'])): ?>
-                <img src="../uploads/<?php echo htmlspecialchars($profile['pas_foto']); ?>" alt="Foto Profil">
-            <?php else: ?>
-                👤
-            <?php endif; ?>
-        </div>
-        <div class="profile-name"><?php echo htmlspecialchars($profile['nama_lengkap'] ?? 'Nama Pelamar'); ?></div>
-        <div class="profile-email"><?php echo htmlspecialchars($profile['email'] ?? '-'); ?></div>
-
-        <ul class="modul-sidebar-list">
-            <?php foreach ($daftar_modul as $index => $m): 
-                $icon_status = ($m['status_pengerjaan'] == 'Selesai') ? '✅' : '🔒';
-            ?>
-                <li>
-                    <span>Psikotes Module <?php echo ($index + 1); ?></span>
-                    <span><?php echo $icon_status; ?></span>
-                </li>
-            <?php endforeach; ?>
-        </ul>
+        <div class="profile-avatar" id="sidebarAvatar">👤</div>
+        <div class="profile-name" id="sidebarName">Memuat...</div>
+        <div class="profile-email" id="sidebarEmail">-</div>
+        <ul class="modul-sidebar-list" id="sidebarModulList"></ul>
     </div>
 
-    <!-- KONTEN UTAMA DAFTAR MODUL -->
     <div class="ujian-main-content">
         <h2 class="ujian-title">DAFTAR MODUL PSIKOTES</h2>
-
-        <?php 
-        $sebelumnya_selesai = true; // Modul pertama otomatis terbuka
-        foreach ($daftar_modul as $index => $modul): 
-            $no = $index + 1;
-            $status = $modul['status_pengerjaan'];
-        ?>
-            <div class="modul-card">
-                <div class="modul-info">
-                    <h3>Psikotes Module <?php echo $no; ?>: <?php echo htmlspecialchars($modul['nama_modul']); ?></h3>
-                    <p>Status: <strong><?php echo $status; ?></strong> (Durasi: <?php echo $modul['durasi_menit']; ?> Menit)</p>
-                </div>
-                <div>
-                    <?php if ($status == 'Selesai'): ?>
-                        <a href="hasil_ujian.php?id=<?php echo $modul['id_modul']; ?>" class="btn-hasil">
-                            Lihat Hasil Tes➔
-                        </a>
-                    <?php elseif ($sebelumnya_selesai): ?>
-                        <a href="cara_ujian.php?id=<?php echo $modul['id_modul']; ?>" class="btn-mulai">
-                            Mulai Tes ➔
-                        </a>
-                        <?php 
-                        // Jika modul ini belum selesai, maka modul berikutnya akan dikunci
-                        $sebelumnya_selesai = false; 
-                        ?>
-                    <?php else: ?>
-                        <button class="btn-locked" disabled>
-                            🔒 Terkunci
-                        </button>
-                    <?php endif; ?>
-                </div>
-            </div>
-        <?php endforeach; ?>
+        <div id="daftarModulContainer">
+            <div class="empty-modul">Memuat daftar modul psikotes...</div>
+        </div>
     </div>
 </div>
 
-<?php 
-mysqli_close($conn);
-include '../includes/footer_pelamar.php'; 
+<script>
+    function escapeHtml(val) {
+        return String(val ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    async function loadUjianList() {
+        const container = document.getElementById('daftarModulContainer');
+        const sidebarList = document.getElementById('sidebarModulList');
+
+        try {
+            const res = await fetch('../api/pelamar/ujian_list.php', {
+                method: 'GET',
+                credentials: 'same-origin'
+            });
+            const result = await res.json();
+
+            if (res.status === 401) {
+                alert(result.message || 'Silakan login terlebih dahulu!');
+                window.location.href = '../login.php';
+                return;
+            }
+
+            if (!res.ok || !result.success) {
+                container.innerHTML = `<div class="empty-modul">${escapeHtml(result.message || 'Gagal memuat modul ujian.')}</div>`;
+                return;
+            }
+
+            const data = result.data || {};
+            const pelamar = data.pelamar || {};
+            const modulList = Array.isArray(data.daftar_modul) ? data.daftar_modul : [];
+
+            const avatarEl = document.getElementById('sidebarAvatar');
+            if (pelamar.pas_foto_url) {
+                avatarEl.innerHTML = `<img src="${escapeHtml(pelamar.pas_foto_url)}" alt="Foto Profil">`;
+            } else {
+                avatarEl.textContent = '👤';
+            }
+            document.getElementById('sidebarName').textContent = pelamar.nama_lengkap || 'Nama Pelamar';
+            document.getElementById('sidebarEmail').textContent = pelamar.email || '-';
+
+            sidebarList.innerHTML = modulList.map((m, idx) => {
+                const icon = (m.status_pengerjaan === 'Selesai') ? '✅' : '🔒';
+                return `<li><span>Psikotes Module ${idx + 1}</span><span>${icon}</span></li>`;
+            }).join('');
+
+            if (modulList.length === 0) {
+                container.innerHTML = `<div class="empty-modul">Belum ada modul psikotes yang tersedia untuk kategori posisi Anda saat ini.</div>`;
+                return;
+            }
+
+            container.innerHTML = modulList.map((modul, idx) => {
+                const no = idx + 1;
+                const status = modul.status_pengerjaan || 'Belum Mulai';
+                const durasi = parseInt(modul.durasi_menit || 0, 10);
+                const idModul = parseInt(modul.id_modul, 10);
+
+                let actionHtml = '';
+                if (status === 'Selesai') {
+                    actionHtml = `<a href="detail_hasil_ujian.php?id=${idModul}" class="btn-hasil">Lihat Hasil Tes ➔</a>`;
+                } else if (modul.terbuka) {
+                    actionHtml = `<a href="cara_ujian.php?id=${idModul}" class="btn-mulai">Mulai ➔</a>`;
+                } else {
+                    actionHtml = `<button type="button" class="btn-locked" disabled>🔒 Terkunci</button>`;
+                }
+
+                return `
+                    <div class="modul-card">
+                        <div class="modul-info">
+                            <h3>Psikotes Module ${no}: ${escapeHtml(modul.nama_modul)}</h3>
+                            <p>Status: <strong>${escapeHtml(status)}</strong> (Durasi: ${durasi} Menit)</p>
+                        </div>
+                        <div class="modul-action">${actionHtml}</div>
+                    </div>
+                `;
+            }).join('');
+        } catch (err) {
+            container.innerHTML = `<div class="empty-modul">Terjadi kesalahan koneksi saat memuat daftar modul.</div>`;
+        }
+    }
+
+    loadUjianList();
+</script>
+
+<?php
+include '../includes/footer_pelamar.php';
 ?>

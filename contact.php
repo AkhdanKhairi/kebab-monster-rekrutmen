@@ -200,7 +200,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <div class="info-box-contact">
                 <h3>📍 Kantor Pusat Kebab Monster</h3>
                 <p><strong>Alamat:</strong> Jl. Bintang Mas No.23, Nanggewer, Kec. Cibinong, Kabupaten Bogor, Jawa Barat 16912</p>
-                <p><strong>Email HRD:</strong> hrd@kebabmonster.id</p>
+                <p><strong>Email Rekrutmen:</strong> recruitment@kebabmonster.id</p>
                 <p><strong>Jam Operasional:</strong> Senin - Jumat (08.30 - 17.30 WIB)</p>
             </div>
 
@@ -246,6 +246,56 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     </div>
 
 </div>
+
+<script>
+(function() {
+    if (!window.fetch) return;
+    const container = document.querySelector('.contact-container');
+    const form = document.querySelector('.contact-form-col form');
+    if (!container || !form) return;
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const btn = form.querySelector('.btn-submit');
+        const oldText = btn ? btn.textContent : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Mengirim...';
+        }
+
+        const formData = new FormData(form);
+        fetch('api/contact.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(json => {
+            let alertBox = document.getElementById('ajax-status-pesan');
+            if (!alertBox) {
+                alertBox = document.createElement('div');
+                alertBox.id = 'ajax-status-pesan';
+                container.insertBefore(alertBox, container.firstChild);
+            }
+            if (json && json.success) {
+                alertBox.innerHTML = `<div style='background:#e8f5e9; color:#2e7d32; padding:15px; border-radius:6px; margin-bottom:20px; font-weight:600; text-align:center;'>${json.message}</div>`;
+                form.reset();
+            } else {
+                const msg = (json && json.message) ? json.message : 'Mohon isi semua kolom yang wajib diisi!';
+                alertBox.innerHTML = `<div style='background:#ffebee; color:#c62828; padding:15px; border-radius:6px; margin-bottom:20px; font-weight:600; text-align:center;'>${msg}</div>`;
+            }
+        })
+        .catch(() => {
+            form.submit();
+        })
+        .finally(() => {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = oldText;
+            }
+        });
+    });
+})();
+</script>
 
 <?php
 // Sertakan footer

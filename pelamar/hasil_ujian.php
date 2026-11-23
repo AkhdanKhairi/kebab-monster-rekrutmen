@@ -1,67 +1,11 @@
 <?php
-session_start();
-
-
-
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'pelamar') {
-    echo "<script>alert('Silakan login terlebih dahulu!'); window.location='../login.php';</script>";
-    exit();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
 }
 
-$id_pelamar = $_SESSION['user_id'];
-
-// Koneksi Database
-$host = 'localhost'; $user = 'root'; $pass = ''; $db = 'db_kebab_monster';
-$conn = mysqli_connect($host, $user, $pass, $db);
-if (!$conn) { die("Koneksi database gagal: " . mysqli_connect_error()); }
-
-// Ambil data profil pelamar
-$query_pelamar = mysqli_query($conn, "SELECT * FROM pelamar WHERE id_pelamar = $id_pelamar");
-$profile = mysqli_fetch_assoc($query_pelamar);
-
-// Ambil data lamaran untuk mengecek apakah HR sudah memberikan konfirmasi ACC
-$q_lamaran = mysqli_query($conn, "SELECT * FROM lamaran WHERE id_pelamar = $id_pelamar ORDER BY id_lamaran DESC LIMIT 1");
-$data_lamaran = mysqli_fetch_assoc($q_lamaran);
-
-// Cek apakah HR sudah meng-ACC (Jika kolom belum ada di database, default-nya 'Menunggu')
-$status_konfirmasi = $data_lamaran['status_konfirmasi_ujian'] ?? 'Menunggu';
-
-// Cek juga apakah masih ada soal (seperti essay/benar-salah) yang berstatus 'Belum Dinilai' oleh HR
-$q_cek_penilaian = mysqli_query($conn, "
-    SELECT jp.* FROM jawaban_pelamar jp 
-    WHERE jp.id_pelamar = $id_pelamar AND jp.status_penilaian = 'Belum Dinilai'
-");
-$ada_yang_belum_dinilai = mysqli_num_rows($q_cek_penilaian) > 0;
-
-// KONDISI BELUM DI-ACC: Jika status masih 'Menunggu' ATAU masih ada soal yang belum dinilai HR
-$belum_dikonfirmasi = ($status_konfirmasi == 'Menunggu' || $ada_yang_belum_dinilai);
-
-// JIKA SUDAH DI-ACC SEMUA, AMBIL REKAP NILAI LENGKAP
-$rekap_modul = [];
-if (!$belum_dikonfirmasi) {
-    $q_modul_selesai = mysqli_query($conn, "
-        SELECT DISTINCT m.id_modul, m.nama_modul, m.urutan 
-        FROM modul_ujian m
-        JOIN soal_ujian s ON m.id_modul = s.id_modul
-        JOIN jawaban_pelamar jp ON s.id_soal = jp.id_soal
-        WHERE jp.id_pelamar = $id_pelamar
-        ORDER BY m.urutan ASC
-    ");
-
-    while ($modul = mysqli_fetch_assoc($q_modul_selesai)) {
-        $id_modul = $modul['id_modul'];
-        
-        $q_skor = mysqli_query($conn, "
-            SELECT AVG(jp.skor) as rata_rata 
-            FROM jawaban_pelamar jp 
-            JOIN soal_ujian s ON jp.id_soal = s.id_soal 
-            WHERE jp.id_pelamar = $id_pelamar AND s.id_modul = $id_modul
-        ");
-        $d_skor = mysqli_fetch_assoc($q_skor);
-        $modul['skor_akhir'] = round($d_skor['rata_rata'] ?? 0);
-        
-        $rekap_modul[] = $modul;
-    }
+if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'pelamar') {
+    echo "<script>alert('Silakan login terlebih dahulu!'); window.location='../login.php';</script>";
+    exit();
 }
 
 include '../includes/header_pelamar.php';
@@ -151,44 +95,108 @@ include '../includes/header_pelamar.php';
 </style>
 
 <div class="hasil-page-container">
-
-    <!-- SIDEBAR PROFIL -->
     <div class="profile-sidebar-card">
-        <div class="profile-avatar">
-            <?php if (!empty($profile['pas_foto'])): ?>
-                <img src="../uploads/<?php echo htmlspecialchars($profile['pas_foto']); ?>" alt="Foto Profil">
-            <?php else: ?> 👤 <?php endif; ?>
-        </div>
-        <div class="profile-name"><?php echo htmlspecialchars($profile['nama_lengkap'] ?? 'Nama Pelamar'); ?></div>
-        <div class="profile-email"><?php echo htmlspecialchars($profile['email'] ?? '-'); ?></div>
+        <div class="profile-avatar" id="hasilAvatar">👤</div>
+        <div class="profile-name" id="hasilName">Memuat...</div>
+        <div class="profile-email" id="hasilEmail">-</div>
 
         <ul class="modul-sidebar-list" style="list-style: none; padding: 0; margin-top: 20px; text-align: left;">
-            <li style="font-size: 13px; font-weight: 600; padding: 6px 0; border-bottom: 1px dashed #eee;">
-                Status: <?php echo $belum_dikonfirmasi ? '⏳ Menunggu Konfirmasi HR' : '✅ Selesai Divalidasi'; ?>
+            <li id="hasilStatusSidebar" style="font-size: 13px; font-weight: 600; padding: 6px 0; border-bottom: 1px dashed #eee;">
+                Status: Memuat...
             </li>
         </ul>
     </div>
 
-    <!-- KONTEN UTAMA -->
     <div class="hasil-main-content">
-        <?php if ($belum_dikonfirmasi): ?>
-            <!-- KONDISI 1: BELUM DI-ACC HR (MUNCUL TAMPILAN PERINGATAN / PENGAMANAN) -->
+        <div id="hasilMainBody" style="width: 100%;">
             <div class="waiting-wrapper">
-                <div class="waiting-title">
-                    JAWABAN ANDA SEDANG DI KOREKSI OLEH TIM HR,<br> 
-                    HARAP TUNGGU UNTUK MELIHAT HASILNYA
-                </div>
+                <div class="waiting-title">Memuat rekapitulasi hasil psikotes...</div>
             </div>
-        <?php else: ?>
-            <!-- KONDISI 2: SUDAH DI-ACC HR, MUNCUL TABEL HASIL DARI MODUL 1 DST -->
-            <div style="width: 100%;">
+        </div>
+
+        <div style="align-self: flex-start; width: 100%; text-align: left; border-top: 1px solid #eee; padding-top: 15px;">
+            <a href="ujian.php" class="btn-kembali">← Kembali ke Daftar Modul</a>
+        </div>
+    </div>
+</div>
+
+<script>
+    function escapeHtml(val) {
+        return String(val ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    async function loadRekapHasil() {
+        const bodyEl = document.getElementById('hasilMainBody');
+        const sidebarStatus = document.getElementById('hasilStatusSidebar');
+
+        try {
+            const res = await fetch('../api/pelamar/ujian_hasil.php', {
+                method: 'GET',
+                credentials: 'same-origin'
+            });
+            const result = await res.json();
+
+            if (res.status === 401) {
+                alert(result.message || 'Silakan login terlebih dahulu!');
+                window.location.href = '../login.php';
+                return;
+            }
+
+            if (!res.ok || !result.success || !result.data) {
+                bodyEl.innerHTML = `<div class="waiting-wrapper"><div class="waiting-title">${escapeHtml(result.message || 'Gagal memuat data hasil.')}</div></div>`;
+                return;
+            }
+
+            const data = result.data;
+            const profile = data.pelamar || {};
+            const belumDikonfirmasi = Boolean(data.belum_dikonfirmasi);
+            const rekapModul = Array.isArray(data.rekap_modul) ? data.rekap_modul : [];
+
+            const avatarEl = document.getElementById('hasilAvatar');
+            if (profile.pas_foto_url) {
+                avatarEl.innerHTML = `<img src="${escapeHtml(profile.pas_foto_url)}" alt="Foto Profil">`;
+            } else {
+                avatarEl.textContent = '👤';
+            }
+            document.getElementById('hasilName').textContent = profile.nama_lengkap || 'Nama Pelamar';
+            document.getElementById('hasilEmail').textContent = profile.email || '-';
+
+            sidebarStatus.textContent = belumDikonfirmasi
+                ? 'Status: ⏳ Menunggu Konfirmasi HR'
+                : 'Status: ✅ Selesai Divalidasi';
+
+            if (belumDikonfirmasi) {
+                bodyEl.innerHTML = `
+                    <div class="waiting-wrapper">
+                        <div class="waiting-title">
+                            JAWABAN ANDA SEDANG DI KOREKSI OLEH TIM HR,<br>
+                            HARAP TUNGGU UNTUK MELIHAT HASILNYA
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            const rowsHtml = rekapModul.map((rm, idx) => `
+                <tr>
+                    <td style="text-align: center; font-weight: 700;">${idx + 1}</td>
+                    <td>${escapeHtml(rm.nama_modul)}</td>
+                    <td style="text-align: center;"><span class="badge-nilai">${escapeHtml(rm.skor_akhir)} / 100</span></td>
+                </tr>
+            `).join('');
+
+            bodyEl.innerHTML = `
                 <h2 style="font-size: 22px; font-weight: 800; color: #111; margin-bottom: 10px;">
                     REKAPITULASI HASIL PSIKOTES
                 </h2>
                 <p style="font-size: 13.5px; color: #666; margin-bottom: 20px;">
                     Seluruh modul ujian Anda telah selesai divalidasi dan dikonfirmasi oleh tim HR Kebab Monster.
                 </p>
-
                 <table class="table-rekap">
                     <thead>
                         <tr>
@@ -197,29 +205,17 @@ include '../includes/header_pelamar.php';
                             <th style="width: 25%; text-align: center;">Hasil / Skor</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <?php foreach ($rekap_modul as $index => $rm): ?>
-                            <tr>
-                                <td style="text-align: center; font-weight: 700;"><?php echo ($index + 1); ?></td>
-                                <td><?php echo htmlspecialchars($rm['nama_modul']); ?></td>
-                                <td style="text-align: center;">
-                                    <span class="badge-nilai"><?php echo $rm['skor_akhir']; ?> / 100</span>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
+                    <tbody>${rowsHtml}</tbody>
                 </table>
-            </div>
-        <?php endif; ?>
+            `;
+        } catch (err) {
+            bodyEl.innerHTML = `<div class="waiting-wrapper"><div class="waiting-title">Terjadi kesalahan koneksi ke server.</div></div>`;
+        }
+    }
 
-        <div style="align-self: flex-start; width: 100%; text-align: left; border-top: 1px solid #eee; padding-top: 15px;">
-            <a href="ujian.php" class="btn-kembali">← Kembali ke Daftar Modul</a>
-        </div>
-    </div>
+    loadRekapHasil();
+</script>
 
-</div>
-
-<?php 
-mysqli_close($conn);
-include '../includes/footer_pelamar.php'; 
+<?php
+include '../includes/footer_pelamar.php';
 ?>

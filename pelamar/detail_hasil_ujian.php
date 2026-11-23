@@ -1,266 +1,425 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
-
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'pelamar') {
+if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'pelamar') {
     echo "<script>alert('Silakan login terlebih dahulu!'); window.location='../login.php';</script>";
     exit();
 }
 
-$id_pelamar = $_SESSION['user_id'];
-$id_modul = isset($_GET['id']) ? intval($_GET['id']) : 0;
-
-// Koneksi Database
-$host = 'localhost'; $user = 'root'; $pass = ''; $db = 'db_kebab_monster';
-$conn = mysqli_connect($host, $user, $pass, $db);
-if (!$conn) { die("Koneksi database gagal: " . mysqli_connect_error()); }
-
-// Ambil data profil
-$query_pelamar = mysqli_query($conn, "SELECT * FROM pelamar WHERE id_pelamar = $id_pelamar");
-$profile = mysqli_fetch_assoc($query_pelamar);
-
-// Ambil detail modul
-$query_modul = mysqli_query($conn, "SELECT * FROM modul_ujian WHERE id_modul = $id_modul");
-$modul = mysqli_fetch_assoc($query_modul);
-
-if (!$modul) {
-    echo "<script>alert('Modul ujian tidak ditemukan!'); window.location='ujian.php';</script>";
-    exit();
-}
-
-// Cek riwayat pengerjaan
-$q_riwayat = mysqli_query($conn, "SELECT * FROM riwayat_ujian_pelamar WHERE id_pelamar = $id_pelamar AND id_modul = $id_modul");
-$riwayat = mysqli_fetch_assoc($q_riwayat);
-if (!$riwayat) {
-    mysqli_query($conn, "INSERT INTO riwayat_ujian_pelamar (id_pelamar, id_modul, status_pengerjaan, waktu_mulai) VALUES ($id_pelamar, $id_modul, 'Sedang Dikerjakan', NOW())");
-} elseif ($riwayat['status_pengerjaan'] == 'Selesai') {
-    echo "<script>alert('Anda sudah menyelesaikan modul ini!'); window.location='ujian.php';</script>";
-    exit();
-}
-
-// Ambil semua soal untuk modul ini
-$query_soal = mysqli_query($conn, "SELECT * FROM soal_ujian WHERE id_modul = $id_modul");
-$arr_soal = [];
-while ($row = mysqli_fetch_assoc($query_soal)) {
-    $arr_soal[] = $row;
-}
-$total_soal = count($arr_soal);
-
-// PROSES SUBMIT JAWABAN AKHIR
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_ujian'])) {
-    $jawaban_array = $_POST['jawaban'] ?? [];
-
-    foreach ($arr_soal as $soal) {
-        $id_soal = $soal['id_soal'];
-        $ans = $jawaban_array[$id_soal] ?? '';
-        $jawaban_user = mysqli_real_escape_string($conn, $ans);
-        
-        $skor = 0;
-        $status_penilaian = 'Sudah Dinilai';
-
-        if ($modul['jenis_modul'] == 'pilihan_ganda') {
-            if (trim(strtoupper($jawaban_user)) == trim(strtoupper($soal['kunci_jawaban']))) {
-                $skor = 100;
-            }
-        } else {
-            $status_penilaian = 'Belum Dinilai'; // Untuk essay / benar-salah
-        }
-
-        $cek_jwb = mysqli_query($conn, "SELECT * FROM jawaban_pelamar WHERE id_pelamar = $id_pelamar AND id_soal = $id_soal");
-        if (mysqli_num_rows($cek_jwb) > 0) {
-            mysqli_query($conn, "UPDATE jawaban_pelamar SET jawaban_user = '$jawaban_user', status_penilaian = '$status_penilaian', skor = $skor WHERE id_pelamar = $id_pelamar AND id_soal = $id_soal");
-        } else {
-            mysqli_query($conn, "INSERT INTO jawaban_pelamar (id_pelamar, id_soal, jawaban_user, status_penilaian, skor) VALUES ($id_pelamar, $id_soal, '$jawaban_user', '$status_penilaian', $skor)");
-        }
-    }
-
-    mysqli_query($conn, "UPDATE riwayat_ujian_pelamar SET status_pengerjaan = 'Selesai', waktu_selesai = NOW() WHERE id_pelamar = $id_pelamar AND id_modul = $id_modul");
-    echo "<script>alert('Ujian berhasil dikirim!'); window.location='ujian.php';</script>";
-    exit();
-}
+$id_modul = intval($_GET['id'] ?? ($_GET['id_modul'] ?? 0));
 
 include '../includes/header_pelamar.php';
 ?>
 
 <style>
-    .ujian-page { max-width: 1100px; margin: 20px auto; padding: 20px; display: flex; gap: 25px; font-family: 'Segoe UI', sans-serif; }
-    
-    /* Sidebar Kiri */
-    .ujian-sidebar { width: 280px; background: #fff; border: 1.5px solid #1b5e20; border-radius: 16px; padding: 20px; text-align: center; height: fit-content; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
-    .timer-circle { width: 110px; height: 110px; border: 4px solid #1b5e20; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px auto; font-size: 20px; font-weight: 800; color: #111; background: #f1f8e9; }
-    .pelamar-info { font-size: 13px; color: #555; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
-    
-    /* Grid Nomor Soal */
-    .grid-nomor { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
-    .btn-nomor { aspect-ratio: 1; background: #e0e0e0; border: 1px solid #ccc; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #333; }
-    .btn-nomor.active { background: #c8e6c9; border-color: #1b5e20; color: #1b5e20; }
-    .btn-nomor.answered { background: #2e7d32; color: #fff; border-color: #1b5e20; }
+    .hasil-container {
+        max-width: 1050px;
+        margin: 20px auto 50px auto;
+        padding: 0 20px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    .hasil-container *,
+    .hasil-container *::before,
+    .hasil-container *::after {
+        box-sizing: border-box;
+    }
 
-    /* Konten Kanan */
-    .ujian-content { flex: 1; background: #fff; border: 1.5px solid #1b5e20; border-radius: 16px; padding: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; }
-    
-    /* Progress Bar */
-    .progress-container { margin-bottom: 25px; }
-    .progress-text { font-size: 13px; font-weight: 700; color: #333; margin-bottom: 6px; }
-    .progress-bar-bg { width: 100%; height: 8px; background: #e0e0e0; border-radius: 4px; overflow: hidden; }
-    .progress-bar-fill { height: 100%; background: #2e7d32; width: 0%; transition: width 0.3s; }
+    .top-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .btn-back-ujian {
+        background: #f1f5f9;
+        color: #334155;
+        text-decoration: none;
+        padding: 9px 16px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 700;
+        border: 1px solid #cbd5e1;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .btn-back-ujian:hover { background: #e2e8f0; }
 
-    /* Soal Card Layout */
-    .soal-card-layout { display: flex; gap: 20px; margin-bottom: 25px; align-items: flex-start; }
-    .soal-image-box { width: 45%; background: #e0e0e0; border-radius: 10px; min-height: 180px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-    .soal-image-box img { width: 100%; height: auto; object-fit: cover; }
-    .soal-text-box { flex: 1; font-size: 14.5px; color: #333; line-height: 1.6; }
-    
-    .options-list label { display: flex; align-items: center; gap: 10px; font-size: 14px; margin-bottom: 10px; cursor: pointer; }
+    .summary-hero {
+        background: linear-gradient(135deg, #1b5e20, #2e7d32);
+        color: #ffffff;
+        border-radius: 16px;
+        padding: 24px 28px;
+        margin-bottom: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 18px;
+        box-shadow: 0 5px 15px rgba(27, 94, 32, 0.2);
+    }
+    .summary-hero.hero-merah {
+        background: linear-gradient(135deg, #991b1b, #dc2626);
+        box-shadow: 0 5px 15px rgba(185, 28, 28, 0.25);
+    }
+    .hero-left-info {
+        flex: 1;
+        min-width: 0;
+    }
+    .kandidat-label {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        opacity: 0.88;
+        font-weight: 700;
+        margin-bottom: 4px;
+    }
+    .kandidat-nama-besar {
+        margin: 0 0 8px 0;
+        font-size: 25px;
+        font-weight: 800;
+        color: #ffffff;
+        line-height: 1.25;
+        overflow-wrap: anywhere;
+    }
+    .kandidat-meta-info {
+        font-size: 13.5px;
+        opacity: 0.95;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 12px;
+        align-items: center;
+        overflow-wrap: anywhere;
+    }
+    .badge-posisi-hero {
+        background: rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 700;
+    }
+    .catatan-hrd-box {
+        margin-top: 12px;
+        font-size: 13.5px;
+        line-height: 1.5;
+        background: rgba(0, 0, 0, 0.2);
+        padding: 10px 14px;
+        border-radius: 10px;
+        overflow-wrap: anywhere;
+    }
+    .score-pill-box {
+        background: rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        padding: 14px 24px;
+        border-radius: 14px;
+        text-align: center;
+        min-width: 170px;
+        flex-shrink: 0;
+    }
+    .score-pill-box span {
+        display: block;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        opacity: 0.92;
+        font-weight: 700;
+    }
+    .score-pill-box strong {
+        font-size: 28px;
+        font-weight: 900;
+    }
 
-    /* Navigasi Bawah */
-    .nav-buttons { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #eee; padding-top: 20px; }
-    .btn-nav { background: #e0e0e0; border: none; padding: 8px 20px; border-radius: 20px; font-weight: 700; cursor: pointer; }
-    .btn-nav:hover { background: #d0d0d0; }
-    .btn-next { background: #ffe082; color: #5d4037; }
-    .btn-next:hover { background: #ffd54f; }
+    .pending-notice {
+        background: #fffbeb;
+        border: 1.5px solid #fcd34d;
+        color: #92400e;
+        padding: 16px 22px;
+        border-radius: 14px;
+        margin-bottom: 20px;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    .rincian-card-wrapper {
+        background: #ffffff;
+        border: 1.5px solid #1b5e20;
+        border-radius: 16px;
+        padding: 24px 26px;
+    }
+    .rincian-title {
+        margin: 0 0 18px 0;
+        font-size: 18px;
+        font-weight: 800;
+        color: #111;
+        text-align: center;
+        line-height: 1.35;
+    }
+
+    .modul-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    .modul-row-card {
+        background: #ffffff;
+        border: 1.5px solid #1b5e20;
+        border-radius: 12px;
+        padding: 18px 22px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 14px;
+    }
+    .modul-row-card.selected {
+        background: #f0fdf4;
+        border-width: 2px;
+    }
+    .modul-row-info {
+        flex: 1;
+        min-width: 0;
+    }
+    .modul-row-title {
+        font-size: 15.5px;
+        font-weight: 800;
+        color: #111;
+        margin-bottom: 4px;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+    }
+    .modul-row-sub {
+        font-size: 13px;
+        color: #475569;
+        line-height: 1.45;
+    }
+    .modul-row-action {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        flex-shrink: 0;
+    }
+
+    .badge-status-ok { background: #dcfce7; color: #166534; padding: 6px 13px; border-radius: 20px; font-size: 12px; font-weight: 800; }
+    .badge-status-wait { background: #fef3c7; color: #92400e; padding: 6px 13px; border-radius: 20px; font-size: 12px; font-weight: 800; }
+    .badge-status-no { background: #f1f5f9; color: #64748b; padding: 6px 13px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+    .link-kerjakan {
+        font-size: 12.5px;
+        font-weight: 700;
+        color: #1b5e20;
+        background: #e8f5e9;
+        border: 1px solid #c8e6c9;
+        padding: 6px 14px;
+        border-radius: 20px;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+    .link-kerjakan:hover {
+        background: #c8e6c9;
+    }
+
+    @media (max-width: 768px) {
+        .hasil-container {
+            margin: 12px auto 36px auto;
+            padding: 0 14px;
+        }
+        .btn-back-ujian {
+            width: 100%;
+            justify-content: center;
+            min-height: 42px;
+        }
+        .summary-hero {
+            flex-direction: column;
+            align-items: stretch;
+            padding: 20px 18px;
+            gap: 14px;
+        }
+        .kandidat-nama-besar {
+            font-size: 20px;
+        }
+        .kandidat-meta-info {
+            font-size: 12.5px;
+        }
+        .score-pill-box {
+            width: 100%;
+            min-width: 0;
+            padding: 12px 16px;
+        }
+        .score-pill-box strong {
+            font-size: 24px;
+        }
+        .pending-notice {
+            padding: 14px 16px;
+            font-size: 13px;
+        }
+        .rincian-card-wrapper {
+            padding: 18px 14px;
+        }
+        .rincian-title {
+            font-size: 16px;
+            margin-bottom: 14px;
+        }
+        .modul-row-card {
+            flex-direction: column;
+            align-items: stretch;
+            padding: 16px 14px;
+            gap: 12px;
+        }
+        .modul-row-title {
+            font-size: 14.5px;
+        }
+        .modul-row-sub {
+            font-size: 12.5px;
+        }
+        .modul-row-action {
+            width: 100%;
+            justify-content: space-between;
+            padding-top: 10px;
+            border-top: 1px dashed #e2e8f0;
+        }
+        .badge-status-ok,
+        .badge-status-wait {
+            width: 100%;
+            text-align: center;
+            padding: 8px 12px;
+        }
+    }
 </style>
 
-<div class="ujian-page">
-    <!-- SIDEBAR KIRI -->
-    <div class="ujian-sidebar">
-        <div class="timer-circle" id="countdown">00:00</div>
-        <div class="pelamar-info">
-            <strong>Lembar Jawaban</strong><br>
-            <span><?php echo htmlspecialchars($profile['email'] ?? '-'); ?></span>
-        </div>
-
-        <!-- Grid Angka 1 sampai 40 -->
-        <div class="grid-nomor" id="gridNomor">
-            <?php for ($i = 0; $i < $total_soal; $i++): ?>
-                <button type="button" class="btn-nomor <?php echo ($i == 0) ? 'active' : ''; ?>" onclick="tampilSoal(<?php echo $i; ?>)" id="btnGrid<?php echo $i; ?>">
-                    <?php echo ($i + 1); ?>
-                </button>
-            <?php endfor; ?>
-        </div>
+<div class="hasil-container">
+    <div class="top-bar">
+        <a href="ujian.php" class="btn-back-ujian">← Kembali ke Daftar Modul Ujian</a>
     </div>
 
-    <!-- KONTEN UTAMA KANAN -->
-    <div class="ujian-content">
-        <form action="" method="POST" id="formUjian">
-            <!-- Progress Bar -->
-            <div class="progress-container">
-                <div class="progress-text" id="progressText">Progres: 1/<?php echo $total_soal; ?> Soal</div>
-                <div class="progress-bar-bg">
-                    <div class="progress-bar-fill" id="progressBar" style="width: <?php echo (1/$total_soal)*100; ?>%;"></div>
-                </div>
-            </div>
-
-            <!-- Area Soal (Ditampilkan per 1 soal menggunakan JavaScript) -->
-            <div id="containerSoal">
-                <?php foreach ($arr_soal as $index => $soal): ?>
-                    <div class="soal-slide" id="slideSoal<?php echo $index; ?>" style="display: <?php echo ($index == 0) ? 'block' : 'none'; ?>;">
-                        <div style="font-weight: 800; font-size: 16px; margin-bottom: 15px; color: #1b5e20;">Soal Nomor <?php echo ($index + 1); ?></div>
-                        
-                        <div class="soal-card-layout">
-                            <!-- Jika ada gambar soal -->
-                            <?php if (!empty($soal['gambar_soal'])): ?>
-                                <div class="soal-image-box">
-                                    <img src="../uploads/<?php echo htmlspecialchars($soal['gambar_soal']); ?>" alt="Gambar Soal">
-                                </div>
-                            <?php endif; ?>
-
-                            <div class="soal-text-box">
-                                <?php echo nl2br(htmlspecialchars($soal['pertanyaan'])); ?>
-                            </div>
-                        </div>
-
-                        <!-- Opsi Jawaban -->
-                        <div class="options-list">
-                            <?php if (!empty($soal['opsi_a'])): ?>
-                                <label><input type="radio" name="jawaban[<?php echo $soal['id_soal']; ?>]" value="A" onchange="tandaiTerjawab(<?php echo $index; ?>)"> A. <?php echo htmlspecialchars($soal['opsi_a']); ?></label>
-                            <?php endif; ?>
-                            <?php if (!empty($soal['opsi_b'])): ?>
-                                <label><input type="radio" name="jawaban[<?php echo $soal['id_soal']; ?>]" value="B" onchange="tandaiTerjawab(<?php echo $index; ?>)"> B. <?php echo htmlspecialchars($soal['opsi_b']); ?></label>
-                            <?php endif; ?>
-                            <?php if (!empty($soal['opsi_c'])): ?>
-                                <label><input type="radio" name="jawaban[<?php echo $soal['id_soal']; ?>]" value="C" onchange="tandaiTerjawab(<?php echo $index; ?>)"> C. <?php echo htmlspecialchars($soal['opsi_c']); ?></label>
-                            <?php endif; ?>
-                            <?php if (!empty($soal['opsi_d'])): ?>
-                                <label><input type="radio" name="jawaban[<?php echo $soal['id_soal']; ?>]" value="D" onchange="tandaiTerjawab(<?php echo $index; ?>)"> D. <?php echo htmlspecialchars($soal['opsi_d']); ?></label>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-
-            <!-- Navigasi Bawah -->
-            <div class="nav-buttons">
-                <button type="button" class="btn-nav" id="btnSebelumnya" onclick="geserSoal(-1)" style="visibility: hidden;">← Sebelumnya</button>
-                <button type="button" class="btn-nav btn-next" id="btnSelanjutnya" onclick="geserSoal(1)">Selanjutnya →</button>
-                <button type="submit" name="submit_ujian" id="btnSubmit" class="btn-nav btn-next" style="display: none; background: #2e7d32; color: #fff;" onclick="return confirm('Yakin ingin menyelesaikan ujian ini?')">Selesai & Kirim</button>
-            </div>
-        </form>
+    <div id="detailHasilContent">
+        <div class="rincian-card-wrapper" style="text-align:center; color:#64748b;">
+            Memuat rincian hasil ujian...
+        </div>
     </div>
 </div>
 
-<!-- JavaScript Interaktif (Timer, Navigasi Soal, Grid Nomor, Progres) -->
 <script>
-    var currentIndex = 0;
-    var totalSoal = <?php echo $total_soal; ?>;
+    const idModulParam = <?php echo intval($id_modul); ?>;
 
-    function tampilSoal(index) {
-        document.querySelectorAll('.soal-slide').forEach(el => el.style.display = 'none');
-        document.getElementById('slideSoal' + index).style.display = 'block';
-        
-        document.querySelectorAll('.btn-nomor').forEach(el => el.classList.remove('active'));
-        document.getElementById('btnGrid' + index).classList.add('active');
-
-        currentIndex = index;
-
-        // Atur tombol navigasi
-        document.getElementById('btnSebelumnya').style.visibility = (currentIndex === 0) ? 'hidden' : 'visible';
-        if (currentIndex === totalSoal - 1) {
-            document.getElementById('btnSelanjutnya').style.display = 'none';
-            document.getElementById('btnSubmit').style.display = 'inline-block';
-        } else {
-            document.getElementById('btnSelanjutnya').style.display = 'inline-block';
-            document.getElementById('btnSubmit').style.display = 'none';
-        }
-
-        // Update teks progres
-        document.getElementById('progressText').innerText = "Progres: " + (currentIndex + 1) + "/" + totalSoal + " Soal";
-        document.getElementById('progressBar').style.width = ((currentIndex + 1) / totalSoal) * 100 + "%";
+    function escapeHtml(val) {
+        return String(val ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 
-    function geserSoal(arah) {
-        var target = currentIndex + arah;
-        if (target >= 0 && target < totalSoal) {
-            tampilSoal(target);
+    async function loadDetailHasil() {
+        const wrap = document.getElementById('detailHasilContent');
+        const query = idModulParam > 0 ? `?id=${idModulParam}` : '';
+
+        try {
+            const res = await fetch(`../api/pelamar/ujian_hasil.php${query}`, {
+                method: 'GET',
+                credentials: 'same-origin'
+            });
+            const result = await res.json();
+
+            if (res.status === 401) {
+                alert(result.message || 'Silakan login terlebih dahulu!');
+                window.location.href = '../login.php';
+                return;
+            }
+
+            if (!res.ok || !result.success || !result.data) {
+                wrap.innerHTML = `<div class="rincian-card-wrapper" style="text-align:center; color:#c62828;">${escapeHtml(result.message || 'Gagal memuat hasil ujian.')}</div>`;
+                return;
+            }
+
+            const data = result.data;
+            const profile = data.pelamar || {};
+            const posisiDilamar = data.posisi_dilamar || '';
+            const hasilPsikotes = data.hasil_psikotes || null;
+            const isPublished = parseInt(data.is_published || 0, 10) === 1;
+            const isTidakLulus = Boolean(data.is_tidak_lulus);
+            const daftarModul = Array.isArray(data.daftar_modul) ? data.daftar_modul : [];
+            const selectedId = parseInt(data.selected_id_modul || 0, 10);
+
+            const posisiBadge = posisiDilamar
+                ? `<span class="badge-posisi-hero">💼 Posisi: ${escapeHtml(posisiDilamar)}</span>`
+                : '';
+
+            const catatanHtml = (isPublished && hasilPsikotes && hasilPsikotes.catatan_hrd)
+                ? `<div class="catatan-hrd-box">💬 <strong>Catatan HRD:</strong> ${escapeHtml(hasilPsikotes.catatan_hrd)}</div>`
+                : '';
+
+            const scoreBoxHtml = (isPublished && hasilPsikotes)
+                ? `<span>Total Skor Akhir (${escapeHtml(hasilPsikotes.status_lulus || 'Selesai')})</span><strong>${Number(hasilPsikotes.skor_akhir || 0).toFixed(1)}</strong>`
+                : `<span>Status Penilaian</span><strong style="font-size: 17px; display:block; margin-top:4px;">⏳ Diproses HRD</strong>`;
+
+            const pendingHtml = !isPublished
+                ? `<div class="pending-notice"><strong>⏳ Hasil Penilaian Resmi Sedang Diproses Tim HRD</strong><br>Jawaban ujian yang sudah Anda kirimkan telah tersimpan di sistem. Nilai akhir akan tampil secara resmi di kotak banner di atas setelah tim HRD selesai melakukan verifikasi dan mempublikasikan hasil tes.</div>`
+                : '';
+
+            let modulListHtml = '';
+            if (daftarModul.length > 0) {
+                const cards = daftarModul.map((m, idx) => {
+                    const no = parseInt(m.nomor_urut || (idx + 1), 10);
+                    const isSelected = parseInt(m.id_modul, 10) === selectedId;
+                    const selesaiWaktu = (m.waktu_selesai && m.waktu_selesai !== '-')
+                        ? `<br>Selesai pada: ${escapeHtml(m.waktu_selesai)}`
+                        : '';
+
+                    let badgeHtml = '';
+                    if (m.status_kerja === 'Selesai') {
+                        badgeHtml = isPublished
+                            ? `<span class="badge-status-ok">Nilai Modul: ${escapeHtml(m.skor_modul)} / 100</span>`
+                            : `<span class="badge-status-wait">✅ Terkirim (Menunggu Hasil HRD)</span>`;
+                    } else {
+                        badgeHtml = `<span class="badge-status-no">Belum Dikerjakan</span><a href="ujian.php" class="link-kerjakan">Kerjakan ➔</a>`;
+                    }
+
+                    return `
+                        <div class="modul-row-card ${isSelected ? 'selected' : ''}">
+                            <div class="modul-row-info">
+                                <div class="modul-row-title">Psikotes Module ${no}: ${escapeHtml(m.nama_modul_tampil)}</div>
+                                <div class="modul-row-sub">Status: <strong>${escapeHtml(m.status_kerja)}</strong>${selesaiWaktu}</div>
+                            </div>
+                            <div class="modul-row-action">${badgeHtml}</div>
+                        </div>
+                    `;
+                }).join('');
+                modulListHtml = `<div class="modul-grid">${cards}</div>`;
+            } else {
+                modulListHtml = `<div style="text-align:center; padding:30px 14px; color:#64748b;">Belum ada modul psikotes yang sesuai dengan kategori posisi Anda saat ini.</div>`;
+            }
+
+            wrap.innerHTML = `
+                <div class="summary-hero ${isTidakLulus ? 'hero-merah' : ''}">
+                    <div class="hero-left-info">
+                        <div class="kandidat-label">Kandidat Peserta Psikotes</div>
+                        <h1 class="kandidat-nama-besar">${escapeHtml(profile.nama_lengkap || '-')}</h1>
+                        <div class="kandidat-meta-info">
+                            <span>✉️ ${escapeHtml(profile.email || '-')}</span>
+                            ${posisiBadge}
+                        </div>
+                        ${catatanHtml}
+                    </div>
+                    <div class="score-pill-box">${scoreBoxHtml}</div>
+                </div>
+                ${pendingHtml}
+                <div class="rincian-card-wrapper">
+                    <h2 class="rincian-title">RINCIAN STATUS & HASIL PER MODUL PSIKOTES</h2>
+                    ${modulListHtml}
+                </div>
+            `;
+        } catch (err) {
+            wrap.innerHTML = `<div class="rincian-card-wrapper" style="text-align:center; color:#c62828;">Terjadi kesalahan koneksi saat memuat rincian hasil ujian.</div>`;
         }
     }
 
-    function tandaiTerjawab(index) {
-        document.getElementById('btnGrid' + index).classList.add('answered');
-    }
-
-    // Timer Mundur
-    var durasiMenit = <?php echo $modul['durasi_menit']; ?>;
-    var waktuTotal = durasiMenit * 60;
-
-    var timer = setInterval(function () {
-        var menit = Math.floor(waktuTotal / 60);
-        var detik = waktuTotal % 60;
-        menit = menit < 10 ? "0" + menit : menit;
-        detik = detik < 10 ? "0" + detik : detik;
-
-        document.getElementById("countdown").innerHTML = menit + ":" + detik;
-
-        if (waktuTotal <= 0) {
-            clearInterval(timer);
-            alert("Waktu ujian habis! Jawaban otomatis dikirim.");
-            document.getElementById("formUjian").submit();
-        }
-        waktuTotal--;
-    }, 1000);
+    loadDetailHasil();
 </script>
 
-<?php 
-mysqli_close($conn);
-include '../includes/footer_pelamar.php'; 
+<?php
+include '../includes/footer_pelamar.php';
 ?>

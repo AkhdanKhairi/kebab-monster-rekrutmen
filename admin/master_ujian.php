@@ -1,99 +1,13 @@
 <?php
-// Sertakan header admin
-include '../includes/header_admin.php';
-include '../includes/sidebar_admin.php';
-
-// Koneksi database db_kebab_monster
-$host = 'localhost'; $user = 'root'; $pass = ''; $db = 'db_kebab_monster';
-$conn = mysqli_connect($host, $user, $pass, $db);
-
-if (!$conn) {
-    die("Koneksi database gagal: " . mysqli_connect_error());
-}
-
-$pesan = "";
-
-// 1. PROSES EDIT / UPDATE MODUL & GESER URUTAN OTOMATIS
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['edit_modul'])) {
-    $id_modul        = intval($_POST['id_modul']);
-    $nama_modul      = mysqli_real_escape_string($conn, $_POST['nama_modul']);
-    $kategori_posisi = mysqli_real_escape_string($conn, $_POST['kategori_posisi']);
-    $durasi_menit    = intval($_POST['durasi_menit']);
-    $jenis_modul     = mysqli_real_escape_string($conn, $_POST['jenis_modul']);
-    $new_urutan      = intval($_POST['urutan']);
-
-    // Ambil urutan lama modul ini
-    $q_old = mysqli_query($conn, "SELECT urutan FROM modul_ujian WHERE id_modul = $id_modul");
-    $d_old = mysqli_fetch_assoc($q_old);
-    $old_urutan = intval($d_old['urutan']);
-
-    // Cek total maksimum urutan yang ada
-    $q_max = mysqli_query($conn, "SELECT MAX(urutan) as max_u FROM modul_ujian");
-    $d_max = mysqli_fetch_assoc($q_max);
-    $max_urutan = intval($d_max['max_u']);
-
-    // Batasi agar urutan baru tidak keluar jalur
-    if ($new_urutan < 1) $new_urutan = 1;
-    if ($new_urutan > $max_urutan) $new_urutan = $max_urutan;
-
-    // Logika Pergeseran Posisi Otomatis
-    if ($new_urutan != $old_urutan) {
-        if ($new_urutan > $old_urutan) {
-            // Jika posisi diturunkan (misal 2 ke 4): item di antara old dan new digeser ke atas (-1)
-            mysqli_query($conn, "UPDATE modul_ujian SET urutan = urutan - 1 WHERE urutan > $old_urutan AND urutan <= $new_urutan AND id_modul != $id_modul");
-        } else {
-            // Jika posisi dinaikkan (misal 4 ke 2): item di antara new dan old digeser ke bawah (+1)
-            mysqli_query($conn, "UPDATE modul_ujian SET urutan = urutan + 1 WHERE urutan >= $new_urutan AND urutan < $old_urutan AND id_modul != $id_modul");
-        }
-    }
-
-    // Update data modul beserta urutan barunya
-    $query_update = "UPDATE modul_ujian SET 
-                     nama_modul = '$nama_modul', 
-                     kategori_posisi = '$kategori_posisi', 
-                     durasi_menit = $durasi_menit, 
-                     jenis_modul = '$jenis_modul',
-                     urutan = $new_urutan
-                     WHERE id_modul = $id_modul";
-    
-    if (mysqli_query($conn, $query_update)) {
-        echo "<script>alert('Modul ujian berhasil diperbarui dan diurutkan ulang!'); window.location='master_ujian.php';</script>";
-        exit();
-    } else {
-        $pesan = "<div class='alert error'>Gagal memperbarui modul: " . mysqli_error($conn) . "</div>";
-    }
-}
-
-// 2. PROSES HAPUS MODUL
-if (isset($_GET['hapus'])) {
-    $id_modul = intval($_GET['hapus']);
-    
-    // Ambil urutan modul yang mau dihapus untuk merapikan sisa urutan di bawahnya
-    $q_del = mysqli_query($conn, "SELECT urutan FROM modul_ujian WHERE id_modul = $id_modul");
-    if ($q_del && mysqli_num_rows($q_del) > 0) {
-        $d_del = mysqli_fetch_assoc($q_del);
-        $del_urutan = intval($d_del['urutan']);
-
-        // Hapus modul
-        if (mysqli_query($conn, "DELETE FROM modul_ujian WHERE id_modul = $id_modul")) {
-            // Geser modul di bawahnya naik 1 angka (-1) agar tidak ada celah kosong
-            mysqli_query($conn, "UPDATE modul_ujian SET urutan = urutan - 1 WHERE urutan > $del_urutan");
-            echo "<script>alert('Modul ujian berhasil dihapus dan urutan dirapikan!'); window.location='master_ujian.php';</script>";
-            exit();
-        }
-    }
-    echo "<script>alert('Gagal menghapus modul.'); window.location='master_ujian.php';</script>";
-}
-
-// Ambil daftar modul ujian diurutkan berdasarkan kolom urutan secara ASC
-$query_modul = mysqli_query($conn, "SELECT * FROM modul_ujian ORDER BY urutan ASC, id_modul ASC");
+include __DIR__ . '/../includes/header_admin.php';
+include __DIR__ . '/../includes/sidebar_admin.php';
 ?>
 
 <style>
     .card-container {
         background: #ffffff;
         border-radius: 12px;
-        padding: 25px;
+        padding: 22px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.03);
         border: 1px solid #e0e0e0;
     }
@@ -101,12 +15,14 @@ $query_modul = mysqli_query($conn, "SELECT * FROM modul_ujian ORDER BY urutan AS
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 25px;
+        margin-bottom: 20px;
         border-bottom: 2px solid #f1f3f5;
-        padding-bottom: 15px;
+        padding-bottom: 14px;
+        gap: 12px;
+        flex-wrap: wrap;
     }
     .page-title {
-        font-size: 20px;
+        font-size: 19px;
         font-weight: 800;
         color: #004d40;
         display: flex;
@@ -117,14 +33,16 @@ $query_modul = mysqli_query($conn, "SELECT * FROM modul_ujian ORDER BY urutan AS
         background-color: #ffb300;
         color: #000;
         border: none;
-        padding: 10px 18px;
+        min-height: 38px;
+        padding: 9px 16px;
         border-radius: 8px;
         font-weight: 700;
-        font-size: 13.5px;
+        font-size: 13px;
         cursor: pointer;
         transition: background 0.2s;
         display: inline-flex;
         align-items: center;
+        justify-content: center;
         gap: 6px;
         text-decoration: none;
     }
@@ -132,7 +50,6 @@ $query_modul = mysqli_query($conn, "SELECT * FROM modul_ujian ORDER BY urutan AS
         background-color: #ffa000;
     }
 
-    /* Tabel Kustom */
     .table-responsive {
         overflow-x: auto;
     }
@@ -140,28 +57,29 @@ $query_modul = mysqli_query($conn, "SELECT * FROM modul_ujian ORDER BY urutan AS
         width: 100%;
         border-collapse: collapse;
         text-align: left;
-        font-size: 14px;
+        font-size: 13.5px;
     }
     .table-custom th {
         background-color: #f8f9fa;
         color: #333;
         font-weight: 700;
-        padding: 14px 15px;
+        padding: 12px 14px;
         border-bottom: 2px solid #e0e0e0;
+        white-space: nowrap;
     }
     .table-custom td {
-        padding: 14px 15px;
+        padding: 12px 14px;
         border-bottom: 1px solid #eee;
         color: #444;
         vertical-align: middle;
     }
-    .table-custom tr:hover {
+    .table-custom tbody tr:hover {
         background-color: #fafafa;
     }
 
-    /* Badge & Tombol Aksi */
     .badge-kategori {
-        padding: 5px 10px;
+        display: inline-block;
+        padding: 4px 10px;
         border-radius: 20px;
         font-size: 11.5px;
         font-weight: 700;
@@ -169,15 +87,23 @@ $query_modul = mysqli_query($conn, "SELECT * FROM modul_ujian ORDER BY urutan AS
         color: #1b5e20;
     }
     .badge-jenis {
-        padding: 5px 10px;
+        display: inline-block;
+        padding: 4px 10px;
         border-radius: 20px;
         font-size: 11.5px;
         font-weight: 700;
         background: #e3f2fd;
         color: #0d47a1;
     }
+
+    .aksi-modul-group {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
     .btn-action {
-        padding: 6px 12px;
+        min-height: 34px;
+        padding: 6px 11px;
         border-radius: 6px;
         font-size: 12px;
         font-weight: 600;
@@ -186,6 +112,7 @@ $query_modul = mysqli_query($conn, "SELECT * FROM modul_ujian ORDER BY urutan AS
         border: none;
         display: inline-flex;
         align-items: center;
+        justify-content: center;
         gap: 4px;
         transition: opacity 0.2s;
     }
@@ -195,54 +122,176 @@ $query_modul = mysqli_query($conn, "SELECT * FROM modul_ujian ORDER BY urutan AS
     .btn-delete { background-color: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
     .btn-action:hover { opacity: 0.85; }
 
-    /* Modal Popup Tengah */
     .modal-overlay {
         display: none;
         position: fixed;
-        top: 0; left: 0; width: 100%; height: 100%;
+        inset: 0;
         background: rgba(0,0,0,0.5);
         z-index: 2000;
         justify-content: center;
         align-items: center;
+        padding: 14px;
     }
     .modal-box {
         background: #fff;
         width: 100%;
         max-width: 500px;
+        max-height: 90vh;
+        overflow-y: auto;
         border-radius: 12px;
-        padding: 30px;
-        box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+        padding: 24px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.18);
         position: relative;
     }
     .modal-header {
-        font-size: 18px;
+        font-size: 17px;
         font-weight: 800;
         color: #004d40;
-        margin-bottom: 20px;
+        margin-bottom: 18px;
         display: flex;
         justify-content: space-between;
         align-items: center;
+        gap: 10px;
     }
     .close-btn {
-        background: none; border: none; font-size: 20px; cursor: pointer; color: #777;
+        background: #f1f5f9;
+        border: none;
+        border-radius: 7px;
+        min-width: 32px;
+        min-height: 32px;
+        font-size: 20px;
+        line-height: 1;
+        cursor: pointer;
+        color: #555;
     }
     .form-group {
-        margin-bottom: 15px;
+        margin-bottom: 14px;
     }
     .form-group label {
-        display: block; font-size: 13px; font-weight: 700; color: #333; margin-bottom: 6px;
+        display: block;
+        font-size: 13px;
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 6px;
     }
     .form-control {
-        width: 100%; padding: 10px 14px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; outline: none;
+        width: 100%;
+        min-height: 38px;
+        padding: 9px 12px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        font-size: 13.5px;
+        outline: none;
+        background: #fff;
     }
     .form-control:focus { border-color: #1b5e20; }
     .btn-submit-modal {
-        background: #1b5e20; color: #fff; width: 100%; padding: 12px; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; margin-top: 10px;
+        background: #1b5e20;
+        color: #fff;
+        width: 100%;
+        min-height: 42px;
+        padding: 11px;
+        border: none;
+        border-radius: 8px;
+        font-size: 13.5px;
+        font-weight: 700;
+        cursor: pointer;
+        margin-top: 8px;
         transition: background 0.2s;
     }
     .btn-submit-modal:hover { background: #00332c; }
-    .alert { padding: 10px; border-radius: 6px; font-size: 13px; margin-bottom: 15px; }
-    .alert.error { background: #ffebee; color: #c62828; }
+    .alert { display: none; padding: 11px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 15px; font-weight: 600; }
+    .alert.error { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
+
+    @media (max-width: 768px) {
+        .card-container {
+            padding: 14px;
+            border-radius: 10px;
+        }
+        .page-header-flex {
+            flex-direction: column;
+            align-items: stretch;
+            margin-bottom: 14px;
+            padding-bottom: 12px;
+        }
+        .page-title {
+            font-size: 16.5px;
+        }
+        .btn-tambah {
+            width: 100%;
+            min-height: 42px;
+            font-size: 14px;
+        }
+
+        .table-custom {
+            display: block;
+        }
+        .table-custom thead {
+            display: none;
+        }
+        .table-custom tbody {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .table-custom tbody tr {
+            display: flex;
+            flex-direction: column;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 12px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+        }
+        .table-custom td {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            padding: 7px 0;
+            border-bottom: 1px dashed #e5e7eb;
+            text-align: right;
+            font-size: 13px;
+        }
+        .table-custom td:last-child {
+            border-bottom: none;
+            padding-top: 10px;
+            justify-content: stretch;
+        }
+        .table-custom td::before {
+            content: attr(data-label);
+            font-weight: 700;
+            color: #004d40;
+            font-size: 12px;
+            text-align: left;
+            flex-shrink: 0;
+        }
+        .table-custom td[data-label="Nama Modul"] {
+            align-items: flex-start;
+        }
+        .aksi-modul-group {
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+        .btn-action {
+            min-height: 38px;
+            font-size: 12.5px;
+        }
+
+        .modal-box {
+            padding: 18px 16px;
+        }
+        .form-control {
+            min-height: 42px;
+            font-size: 16px;
+        }
+        .btn-submit-modal {
+            min-height: 44px;
+            font-size: 14px;
+        }
+    }
 </style>
 
 <div class="card-container">
@@ -250,13 +299,12 @@ $query_modul = mysqli_query($conn, "SELECT * FROM modul_ujian ORDER BY urutan AS
         <div class="page-title">
             <span>📝</span> Master Modul & Ujian Psikotes
         </div>
-        <!-- Tombol menuju halaman tambah modul -->
         <a href="tambah_modul.php" class="btn-tambah">
-            + Tambah Modul Ujian
+            + Tambah Modul Tes
         </a>
     </div>
 
-    <?php echo $pesan; ?>
+    <div class="alert error" id="masterUjianError"></div>
 
     <div class="table-responsive">
         <table class="table-custom">
@@ -270,57 +318,12 @@ $query_modul = mysqli_query($conn, "SELECT * FROM modul_ujian ORDER BY urutan AS
                     <th>Aksi</th>
                 </tr>
             </thead>
-            <tbody>
-                <?php 
-                if ($query_modul && mysqli_num_rows($query_modul) > 0) {
-                    while ($row = mysqli_fetch_assoc($query_modul)) {
-                ?>
+            <tbody id="tbodyModulUjian">
                 <tr>
-                    <td><strong>#<?php echo $row['urutan']; ?></strong></td>
-                    <td>
-                        <strong><?php echo htmlspecialchars($row['nama_modul']); ?></strong>
-                    </td>
-                    <td>
-                        <span class="badge-kategori"><?php echo htmlspecialchars($row['kategori_posisi']); ?></span>
-                    </td>
-                    <td><?php echo $row['durasi_menit']; ?> Menit</td>
-                    <td>
-                        <span class="badge-jenis"><?php echo ucwords(str_replace('_', ' ', $row['jenis_modul'])); ?></span>
-                    </td>
-                    <td>
-                        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                            <!-- Tombol 1: Atur Tata Cara -->
-                            <a href="tata_cara_ujian.php?id_modul=<?php echo $row['id_modul']; ?>" class="btn-action btn-tatacara" title="Atur Tata Cara Ujian">
-                                📋 Tata Cara
-                            </a>
-                            <!-- Tombol 2: Kelola Soal -->
-                            <a href="tambah_soal.php?id_modul=<?php echo $row['id_modul']; ?>" class="btn-action btn-soal" title="Kelola Daftar Soal">
-                                📝 Kelola Soal
-                            </a>
-                            <!-- Tombol Edit Modal -->
-                            <button type="button" class="btn-action btn-edit" onclick="openEditModal(
-                                '<?php echo $row['id_modul']; ?>',
-                                '<?php echo htmlspecialchars($row['nama_modul'], ENT_QUOTES); ?>',
-                                '<?php echo $row['kategori_posisi']; ?>',
-                                '<?php echo $row['durasi_menit']; ?>',
-                                '<?php echo $row['jenis_modul']; ?>',
-                                '<?php echo $row['urutan']; ?>'
-                            )">
-                                ✏️ Edit
-                            </button>
-                            <!-- Tombol Hapus -->
-                            <a href="master_ujian.php?hapus=<?php echo $row['id_modul']; ?>" class="btn-action btn-delete" onclick="return confirm('Yakin ingin menghapus modul ini? Urutan modul di bawahnya akan otomatis dirapikan.')">
-                                🗑️ Hapus
-                            </a>
-                        </div>
+                    <td colspan="6" style="text-align: center; padding: 30px; color: #777;">
+                        Memuat daftar modul ujian...
                     </td>
                 </tr>
-                <?php 
-                    }
-                } else {
-                    echo "<tr><td colspan='6' style='text-align: center; padding: 30px; color: #777;'>Belum ada modul ujian yang terdaftar di database. Silakan klik tombol 'Tambah Modul Ujian' di atas.</td></tr>";
-                }
-                ?>
             </tbody>
         </table>
     </div>
@@ -331,26 +334,25 @@ $query_modul = mysqli_query($conn, "SELECT * FROM modul_ujian ORDER BY urutan AS
     <div class="modal-box">
         <div class="modal-header">
             <span>Edit Modul Ujian & Urutan</span>
-            <button type="button" class="close-btn" onclick="closeEditModal()">&times;</button>
+            <button type="button" class="close-btn" id="btnCloseEditModal" aria-label="Tutup modal">&times;</button>
         </div>
-        
-        <form action="" method="POST">
-            <input type="hidden" name="edit_modul" value="1">
+
+        <form id="formEditModul">
             <input type="hidden" id="edit_id_modul" name="id_modul">
-            
+
             <div class="form-group">
-                <label>Nama Modul Ujian</label>
+                <label for="edit_nama_modul">Nama Modul Ujian</label>
                 <input type="text" id="edit_nama_modul" name="nama_modul" class="form-control" required>
             </div>
 
             <div class="form-group">
-                <label>Nomor Urutan Tampil</label>
+                <label for="edit_urutan">Nomor Urutan Tampil</label>
                 <input type="number" id="edit_urutan" name="urutan" class="form-control" min="1" required>
                 <small style="color: #666; font-size: 11.5px;">*Mengubah nomor urut akan otomatis menggeser modul lain di sekitarnya.</small>
             </div>
 
             <div class="form-group">
-                <label>Kategori Posisi Target</label>
+                <label for="edit_kategori_posisi">Kategori Posisi Target</label>
                 <select id="edit_kategori_posisi" name="kategori_posisi" class="form-control" required>
                     <option value="Semua">Semua Posisi (Umum)</option>
                     <option value="Staff">Staff</option>
@@ -359,12 +361,12 @@ $query_modul = mysqli_query($conn, "SELECT * FROM modul_ujian ORDER BY urutan AS
             </div>
 
             <div class="form-group">
-                <label>Durasi Pengerjaan (Menit)</label>
+                <label for="edit_durasi_menit">Durasi Pengerjaan (Menit)</label>
                 <input type="number" id="edit_durasi_menit" name="durasi_menit" class="form-control" min="1" required>
             </div>
 
             <div class="form-group">
-                <label>Jenis Modul / Soal</label>
+                <label for="edit_jenis_modul">Jenis Modul / Soal</label>
                 <select id="edit_jenis_modul" name="jenis_modul" class="form-control" required>
                     <option value="pilihan_ganda">Pilihan Ganda</option>
                     <option value="benar_salah">Benar / Salah (Ya / Tidak)</option>
@@ -372,40 +374,200 @@ $query_modul = mysqli_query($conn, "SELECT * FROM modul_ujian ORDER BY urutan AS
                 </select>
             </div>
 
-            <button type="submit" class="btn-submit-modal">Simpan Perubahan & Urutkan</button>
+            <button type="submit" class="btn-submit-modal" id="btnSimpanEditModul">Simpan Perubahan & Urutkan</button>
         </form>
     </div>
 </div>
 
 <script>
-    function openEditModal(id, nama, kategori, durasi, jenis, urutan) {
-        document.getElementById('edit_id_modul').value = id;
-        document.getElementById('edit_nama_modul').value = nama;
-        document.getElementById('edit_kategori_posisi').value = kategori;
-        document.getElementById('edit_durasi_menit').value = durasi;
-        document.getElementById('edit_jenis_modul').value = jenis;
-        document.getElementById('edit_urutan').value = urutan;
-        
-        document.getElementById('modalEdit').style.display = 'flex';
+(function() {
+    const tbody = document.getElementById('tbodyModulUjian');
+    const errBox = document.getElementById('masterUjianError');
+    const modal = document.getElementById('modalEdit');
+    const formEdit = document.getElementById('formEditModul');
+    const btnCloseModal = document.getElementById('btnCloseEditModal');
+
+    function escapeHtml(val) {
+        return String(val ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function formatJenis(jenis) {
+        return String(jenis ?? '')
+            .replace(/_/g, ' ')
+            .replace(/\b\w/g, ch => ch.toUpperCase());
+    }
+
+    function showError(msg) {
+        errBox.style.display = 'block';
+        errBox.textContent = '❌ ' + msg;
+    }
+
+    function openEditModal(item) {
+        document.getElementById('edit_id_modul').value = item.id_modul;
+        document.getElementById('edit_nama_modul').value = item.nama_modul || '';
+        document.getElementById('edit_kategori_posisi').value = item.kategori_posisi || 'Semua';
+        document.getElementById('edit_durasi_menit').value = item.durasi_menit || 1;
+        document.getElementById('edit_jenis_modul').value = item.jenis_modul || 'pilihan_ganda';
+        document.getElementById('edit_urutan').value = item.urutan || 1;
+        modal.style.display = 'flex';
     }
 
     function closeEditModal() {
-        document.getElementById('modalEdit').style.display = 'none';
+        modal.style.display = 'none';
     }
 
-    window.onclick = function(event) {
-        var modal = document.getElementById('modalEdit');
-        if (event.target == modal) {
-            modal.style.display = 'none';
+    btnCloseModal.addEventListener('click', closeEditModal);
+    window.addEventListener('click', function(event) {
+        if (event.target === modal) {
+            closeEditModal();
+        }
+    });
+
+    function renderModulList(list) {
+        if (!Array.isArray(list) || list.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 30px; color: #777;">Belum ada modul ujian yang terdaftar di database. Silakan klik tombol 'Tambah Modul Tes' di atas.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = list.map(row => {
+            const idM = parseInt(row.id_modul, 10);
+            const urutanM = parseInt(row.urutan, 10) || 0;
+            const durasiM = parseInt(row.durasi_menit, 10) || 0;
+            const jsonData = encodeURIComponent(JSON.stringify({
+                id_modul: idM,
+                nama_modul: row.nama_modul || '',
+                kategori_posisi: row.kategori_posisi || 'Semua',
+                durasi_menit: durasiM,
+                jenis_modul: row.jenis_modul || 'pilihan_ganda',
+                urutan: urutanM
+            }));
+
+            return `
+                <tr>
+                    <td data-label="Urutan"><strong>#${urutanM}</strong></td>
+                    <td data-label="Nama Modul"><strong>${escapeHtml(row.nama_modul || '')}</strong></td>
+                    <td data-label="Kategori"><span class="badge-kategori">${escapeHtml(row.kategori_posisi || '')}</span></td>
+                    <td data-label="Durasi">${durasiM} Menit</td>
+                    <td data-label="Jenis Tes"><span class="badge-jenis">${escapeHtml(formatJenis(row.jenis_modul || ''))}</span></td>
+                    <td data-label="Aksi">
+                        <div class="aksi-modul-group">
+                            <a href="tata_cara_ujian.php?id_modul=${idM}" class="btn-action btn-tatacara" title="Atur Tata Cara Ujian">📋 Tata Cara</a>
+                            <a href="tambah_soal.php?id_modul=${idM}" class="btn-action btn-soal" title="Kelola Daftar Soal">❓ Kelola Soal</a>
+                            <button type="button" class="btn-action btn-edit" data-edit-modul="${jsonData}">✏️ Edit</button>
+                            <button type="button" class="btn-action btn-delete" data-delete-modul="${idM}">🗑️ Hapus</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    async function loadModul() {
+        try {
+            const res = await fetch('../api/admin/modul_ujian.php', {
+                method: 'GET',
+                credentials: 'same-origin'
+            });
+            const result = await res.json();
+
+            if (res.status === 401) {
+                alert(result.message || 'Silakan login terlebih dahulu sebagai HR/Admin!');
+                window.location.href = '../login.php';
+                return;
+            }
+
+            if (!res.ok || !result.success || !result.data) {
+                throw new Error(result.message || 'Gagal memuat modul ujian');
+            }
+
+            renderModulList(result.data.modul_list || []);
+        } catch (err) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 30px; color: #c62828;">Gagal memuat daftar modul ujian.</td></tr>`;
         }
     }
+
+    tbody.addEventListener('click', async function(e) {
+        const editBtn = e.target.closest('[data-edit-modul]');
+        if (editBtn) {
+            try {
+                const parsed = JSON.parse(decodeURIComponent(editBtn.getAttribute('data-edit-modul')));
+                openEditModal(parsed);
+            } catch (_) {}
+            return;
+        }
+
+        const delBtn = e.target.closest('[data-delete-modul]');
+        if (delBtn) {
+            const idModul = parseInt(delBtn.getAttribute('data-delete-modul'), 10);
+            if (!confirm('Yakin ingin menghapus modul ini? Urutan modul di bawahnya akan otomatis dirapikan.')) return;
+
+            try {
+                const res = await fetch('../api/admin/modul_ujian.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ action: 'delete', id_modul: idModul })
+                });
+                const result = await res.json();
+                if (res.ok && result.success) {
+                    alert(result.message || 'Modul ujian berhasil dihapus dan urutan dirapikan!');
+                    loadModul();
+                } else {
+                    showError(result.message || 'Gagal menghapus modul.');
+                }
+            } catch (err) {
+                showError('Terjadi kesalahan koneksi saat menghapus modul.');
+            }
+        }
+    });
+
+    formEdit.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        errBox.style.display = 'none';
+
+        const payload = {
+            action: 'update',
+            id_modul: parseInt(document.getElementById('edit_id_modul').value, 10),
+            nama_modul: document.getElementById('edit_nama_modul').value.trim(),
+            urutan: parseInt(document.getElementById('edit_urutan').value, 10),
+            kategori_posisi: document.getElementById('edit_kategori_posisi').value,
+            durasi_menit: parseInt(document.getElementById('edit_durasi_menit').value, 10),
+            jenis_modul: document.getElementById('edit_jenis_modul').value
+        };
+
+        try {
+            const res = await fetch('../api/admin/modul_ujian.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify(payload)
+            });
+            const result = await res.json();
+            if (res.ok && result.success) {
+                closeEditModal();
+                alert(result.message || 'Modul ujian berhasil diperbarui dan diurutkan ulang!');
+                loadModul();
+            } else {
+                showError(result.message || 'Gagal memperbarui modul.');
+            }
+        } catch (err) {
+            showError('Terjadi kesalahan koneksi saat menyimpan perubahan modul.');
+        }
+    });
+
+    loadModul();
+})();
 </script>
 
-<?>
-<?php 
-mysqli_close($conn);
+<?php
+if (file_exists(__DIR__ . '/../includes/footer_admin.php')) {
+    include __DIR__ . '/../includes/footer_admin.php';
+} else {
+    echo "</main></div></body></html>";
+}
 ?>
-        </main>
-    </div>
-</body>
-</html>

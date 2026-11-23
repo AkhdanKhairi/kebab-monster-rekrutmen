@@ -1,31 +1,14 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'pelamar') {
+if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'pelamar') {
     echo "<script>alert('Silakan login terlebih dahulu!'); window.location='../login.php';</script>";
     exit();
 }
 
-$id_pelamar = $_SESSION['user_id'];
 $id_modul = isset($_GET['id']) ? intval($_GET['id']) : 0;
-
-// Koneksi Database
-$host = 'localhost'; $user = 'root'; $pass = ''; $db = 'db_kebab_monster';
-$conn = mysqli_connect($host, $user, $pass, $db);
-if (!$conn) { die("Koneksi database gagal: " . mysqli_connect_error()); }
-
-// Ambil data profil
-$query_pelamar = mysqli_query($conn, "SELECT * FROM pelamar WHERE id_pelamar = $id_pelamar");
-$profile = mysqli_fetch_assoc($query_pelamar);
-
-// Ambil detail modul berdasarkan ID
-$query_modul = mysqli_query($conn, "SELECT * FROM modul_ujian WHERE id_modul = $id_modul");
-$modul = mysqli_fetch_assoc($query_modul);
-
-if (!$modul) {
-    echo "<script>alert('Modul ujian tidak ditemukan!'); window.location='ujian.php';</script>";
-    exit();
-}
 
 include '../includes/header_pelamar.php';
 ?>
@@ -72,7 +55,6 @@ include '../includes/header_pelamar.php';
         border-radius: 12px;
         margin-bottom: 30px;
     }
-    /* Mengatur list agar rapi berurutan ke bawah */
     .instruksi-content ol {
         padding-left: 20px;
         margin-top: 10px;
@@ -112,59 +94,124 @@ include '../includes/header_pelamar.php';
     <div class="cara-main-content">
         <div>
             <div class="cara-title">Tata Cara Mengerjakan Ujian</div>
-            <div class="modul-subtitle"><?php echo htmlspecialchars($modul['nama_modul']); ?></div>
-            
-            <div class="instruksi-box">
-                <!-- Informasi Durasi & Jenis Tes -->
-                <p style="margin-bottom: 12px; font-weight: 600; color: #1b5e20;">
-                    ⏱️ Durasi Pengerjaan: <?php echo $modul['durasi_menit']; ?> Menit &nbsp;|&nbsp; 
-                    📋 Jenis Tes: <?php echo ucwords(str_replace('_', ' ', $modul['jenis_modul'])); ?>
-                </p>
-                <hr style="border: 0; border-top: 1px solid #c5e1a5; margin-bottom: 18px;">
+            <div class="modul-subtitle" id="modulSubtitle">Memuat modul...</div>
 
-                <!-- Menampilkan tata cara per poin ke bawah secara otomatis -->
-                <div class="instruksi-content">
-                    <?php 
-                    if (!empty($modul['tata_cara'])) {
-                        // Memecah teks berdasarkan baris baru (enter dari textarea admin)
-                        $baris_teks = explode("\n", trim($modul['tata_cara']));
-                        if (count($baris_teks) > 1) {
-                            echo "<ol>";
-                            foreach ($baris_teks as $teks) {
-                                if (trim($teks) != "") {
-                                    // Bersihkan angka manual jika sempat diketik, agar tidak double numbering
-                                    $bersih = preg_replace('/^\d+[\.\)]\s*/', '', trim($teks));
-                                    echo "<li>" . htmlspecialchars($bersih) . "</li>";
-                                }
-                            }
-                            echo "</ol>";
-                        } else {
-                            echo "<p>" . nl2br(htmlspecialchars($modul['tata_cara'])) . "</p>";
-                        }
-                    } else {
-                        echo "<p>Belum ada tata cara khusus yang diatur oleh HR untuk modul ini.</p>";
-                    }
-                    ?>
-                </div>
-
-                <!-- Gambar Pendukung Tata Cara jika ada -->
-                <?php if (!empty($modul['gambar_petunjuk'])): ?>
-                    <div style="margin-top: 20px; text-align: center;">
-                        <img src="../assets/img/tatacara/<?php echo $modul['gambar_petunjuk']; ?>" alt="Petunjuk Gambar Tata Cara">
-                    </div>
-                <?php endif; ?>
+            <div class="instruksi-box" id="instruksiBox">
+                <p>Memuat tata cara ujian...</p>
             </div>
         </div>
 
-        <div>
-            <a href="kerjakan_ujian.php?id=<?php echo $modul['id_modul']; ?>" class="btn-mulai-tes">
-                Mulai Tes <?php echo htmlspecialchars($modul['nama_modul']); ?> ➔
-            </a>
-        </div>
+        <div id="tombolMulaiContainer"></div>
     </div>
 </div>
 
-<?php 
-mysqli_close($conn);
-include '../includes/footer_pelamar.php'; 
+<script>
+    const idModul = <?php echo intval($id_modul); ?>;
+
+    function escapeHtml(val) {
+        return String(val ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function formatJenisTes(jenis) {
+        return String(jenis ?? '')
+            .replace(/_/g, ' ')
+            .replace(/\b\w/g, ch => ch.toUpperCase());
+    }
+
+    function renderTataCara(rawText) {
+        const trimmed = String(rawText ?? '').trim();
+        if (!trimmed) {
+            return '<p>Belum ada tata cara khusus yang diatur oleh HR untuk modul ini.</p>';
+        }
+        const lines = trimmed.split(/\r?\n/);
+        if (lines.length > 1) {
+            const items = lines
+                .map(line => line.trim())
+                .filter(line => line !== '')
+                .map(line => line.replace(/^\d+[\.\)]\s*/, ''))
+                .map(clean => `<li>${escapeHtml(clean)}</li>`)
+                .join('');
+            return `<ol>${items}</ol>`;
+        }
+        return `<p>${escapeHtml(trimmed).replace(/\r?\n/g, '<br>')}</p>`;
+    }
+
+    async function loadCaraUjian() {
+        const subtitleEl = document.getElementById('modulSubtitle');
+        const boxEl = document.getElementById('instruksiBox');
+        const btnWrap = document.getElementById('tombolMulaiContainer');
+
+        if (idModul <= 0) {
+            alert('Modul ujian tidak ditemukan!');
+            window.location.href = 'ujian.php';
+            return;
+        }
+
+        try {
+            const res = await fetch(`../api/pelamar/ujian_list.php?id=${idModul}`, {
+                method: 'GET',
+                credentials: 'same-origin'
+            });
+            const result = await res.json();
+
+            if (res.status === 401) {
+                alert(result.message || 'Silakan login terlebih dahulu!');
+                window.location.href = '../login.php';
+                return;
+            }
+
+            if (!res.ok || !result.success || !(result.data && result.data.modul)) {
+                alert(result.message || 'Modul ujian tidak ditemukan!');
+                window.location.href = 'ujian.php';
+                return;
+            }
+
+            const modul = result.data.modul;
+            const namaModul = modul.nama_modul || '';
+            const durasi = parseInt(modul.durasi_menit || 0, 10);
+            const jenisLabel = formatJenisTes(modul.jenis_modul || '');
+
+            subtitleEl.textContent = namaModul;
+
+            let gambarHtml = '';
+            if (modul.gambar_petunjuk) {
+                gambarHtml = `
+                    <div style="margin-top: 20px; text-align: center;">
+                        <img src="../assets/img/tatacara/${escapeHtml(modul.gambar_petunjuk)}" alt="Petunjuk Gambar Tata Cara">
+                    </div>
+                `;
+            }
+
+            boxEl.innerHTML = `
+                <p style="margin-bottom: 12px; font-weight: 600; color: #1b5e20;">
+                    ⏱️ Durasi Pengerjaan: ${durasi} Menit &nbsp;|&nbsp;
+                    📋 Jenis Tes: ${escapeHtml(jenisLabel)}
+                </p>
+                <hr style="border: 0; border-top: 1px solid #c5e1a5; margin-bottom: 18px;">
+                <div class="instruksi-content">
+                    ${renderTataCara(modul.tata_cara)}
+                </div>
+                ${gambarHtml}
+            `;
+
+            btnWrap.innerHTML = `
+                <a href="kerjakan_ujian.php?id=${parseInt(modul.id_modul, 10)}" class="btn-mulai-tes">
+                    Mulai Tes ${escapeHtml(namaModul)} ➔
+                </a>
+            `;
+        } catch (err) {
+            boxEl.innerHTML = '<p>Terjadi kesalahan koneksi saat memuat tata cara ujian.</p>';
+        }
+    }
+
+    loadCaraUjian();
+</script>
+
+<?php
+include '../includes/footer_pelamar.php';
 ?>

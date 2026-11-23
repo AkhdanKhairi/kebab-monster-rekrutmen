@@ -59,7 +59,7 @@
             <div class="footer-col" style="max-width: 320px;">
                 <h3>HUBUNGI KAMI</h3>
                 <p>Pesan Via WhatsApp</p>
-                <p>hrd@kebabmonster.id</p>
+                <p>recruitment@kebabmonster.id</p>
                 <p>Jl. Bintang Mas No.23, Naggewer, Kec. Cibinong, Kabupaten Bogor, Jawa Barat 16912</p>
             </div>
         </div>

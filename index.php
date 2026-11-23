@@ -29,14 +29,14 @@ include 'includes/header.php';
     /* Container Utama untuk Bagian Tengah */
     .content-wrapper {
         width: 90%;
-        max-width: 1300px;
+        max-width: 800px;
         margin: 40px auto;
     }
 
     /* Warning Section */
     .fraud-warning-container {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
         gap: 25px;
         margin-bottom: 50px;
     }
@@ -126,7 +126,7 @@ include 'includes/header.php';
     }
     .why-grid {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
         gap: 25px;
         margin-bottom: 50px;
     }
@@ -180,7 +180,7 @@ include 'includes/header.php';
     
     .cities-grid {
         display: grid;
-        grid-template-columns: repeat(6, 1fr);
+        grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
         gap: 15px;
     }
     .city-card {
@@ -215,7 +215,7 @@ include 'includes/header.php';
     }
     .visimisi-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
         gap: 30px;
     }
     
@@ -253,6 +253,56 @@ include 'includes/header.php';
         font-size: 14.5px;
         color: #444;
         line-height: 1.7;
+    }
+
+    /* Penyesuaian Layar HP */
+    @media (max-width: 768px) {
+        .join-banner {
+            padding: 40px 16px;
+        }
+        .join-banner h1 {
+            font-size: 26px;
+        }
+        .content-wrapper {
+            width: 92%;
+            margin: 25px auto;
+        }
+        .fraud-warning-container,
+        .why-grid,
+        .visimisi-grid {
+            gap: 16px;
+            margin-bottom: 35px;
+        }
+        .fraud-box,
+        .why-card {
+            padding: 20px;
+        }
+        .part-section,
+        .expanding-section {
+            padding: 45px 16px;
+            margin-bottom: 35px;
+        }
+        .part-section h2,
+        .visimisi-title {
+            font-size: 24px;
+        }
+        .visimisi-title {
+            margin-bottom: 24px;
+        }
+        .vm-body {
+            padding: 24px 18px;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .cities-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        .city-card {
+            font-size: 18px;
+            padding: 16px 8px;
+        }
     }
 </style>
 
@@ -362,6 +412,15 @@ include 'includes/header.php';
     </div>
 
 </div>
+
+<script>
+(function() {
+    if (!window.fetch) return;
+    fetch('api/index.php')
+        .then(res => res.ok ? res.json() : null)
+        .catch(() => {});
+})();
+</script>
 
 <?php
 include 'includes/footer.php';

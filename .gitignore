@@ -1,0 +1,6 @@
+﻿vendor/
+uploads/*
+!uploads/.gitkeep
+*.log
+.env
+admin.zip

@@ -1,53 +1,11 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
-// 1. Cek apakah pelamar sudah login
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'pelamar') {
+if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'pelamar') {
     echo "<script>alert('Silakan login terlebih dahulu!'); window.location='../login.php';</script>";
     exit();
-}
-
-$id_pelamar = $_SESSION['user_id'];
-$pesan = "";
-
-// 2. Koneksi ke Database XAMPP
-$host = 'localhost'; 
-$user = 'root'; 
-$pass = ''; 
-$db   = 'db_kebab_monster';
-$conn = mysqli_connect($host, $user, $pass, $db);
-
-if (!$conn) {
-    die("Koneksi database gagal: " . mysqli_connect_error());
-}
-
-// 3. Proses ketika form Ganti Password disubmit
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $password_lama       = md5($_POST['password_lama']); // Sesuai dengan enkripsi MD5 di login
-    $password_baru       = $_POST['password_baru'];
-    $konfirmasi_password = $_POST['konfirmasi_password'];
-
-    // Ambil password lama dari database untuk dicocokkan
-    $query_cek = mysqli_query($conn, "SELECT password FROM pelamar WHERE id_pelamar = $id_pelamar");
-    $data_pelamar = mysqli_fetch_assoc($query_cek);
-
-    if ($data_pelamar['password'] !== $password_lama) {
-        $pesan = "<div class='alert error'>Password lama yang Anda masukkan salah!</div>";
-    } elseif ($password_baru !== $konfirmasi_password) {
-        $pesan = "<div class='alert error'>Konfirmasi password baru tidak cocok!</div>";
-    } elseif (strlen($password_baru) < 6) {
-        $pesan = "<div class='alert error'>Password baru minimal harus 6 karakter!</div>";
-    } else {
-        // Update password baru ke database (dienkripsi dengan MD5)
-        $password_baru_md5 = md5($password_baru);
-        $query_update = mysqli_query($conn, "UPDATE pelamar SET password = '$password_baru_md5' WHERE id_pelamar = $id_pelamar");
-
-        if ($query_update) {
-            $pesan = "<div class='alert success'>Password akun berhasil diperbarui! Silakan gunakan password baru untuk login selanjutnya.</div>";
-        } else {
-            $pesan = "<div class='alert error'>Terjadi kesalahan sistem, gagal mengubah password.</div>";
-        }
-    }
 }
 
 include '../includes/header_pelamar.php';
@@ -108,6 +66,7 @@ include '../includes/header_pelamar.php';
         font-size: 14px;
         outline: none;
         transition: border-color 0.2s;
+        box-sizing: border-box;
     }
 
     .form-control:focus {
@@ -144,6 +103,11 @@ include '../includes/header_pelamar.php';
         background-color: #00332c;
     }
 
+    .btn-submit:disabled {
+        opacity: 0.7;
+        cursor: wait;
+    }
+
     .alert {
         padding: 12px 15px;
         border-radius: 8px;
@@ -161,9 +125,9 @@ include '../includes/header_pelamar.php';
         <h2>Ganti Password Akun</h2>
         <p class="subtitle">Amankan akun Anda dengan menggunakan kombinasi password yang kuat.</p>
 
-        <?php echo $pesan; ?>
+        <div id="alert-container"></div>
 
-        <form action="" method="POST">
+        <form id="formGantiPassword" action="" method="POST">
             <div class="form-group">
                 <label>Password Lama</label>
                 <div class="password-container">
@@ -188,7 +152,7 @@ include '../includes/header_pelamar.php';
                 </div>
             </div>
 
-            <button type="submit" class="btn-submit">Simpan Perubahan Password</button>
+            <button type="submit" id="btnSimpanPw" class="btn-submit">Simpan Perubahan Password</button>
         </form>
     </div>
 </div>
@@ -204,9 +168,58 @@ include '../includes/header_pelamar.php';
             btnElement.textContent = "👁️";
         }
     }
+
+    function showAlert(type, message) {
+        const container = document.getElementById('alert-container');
+        const safeMsg = String(message ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+        container.innerHTML = `<div class="alert ${type}">${safeMsg}</div>`;
+    }
+
+    document.getElementById('formGantiPassword').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const btn = document.getElementById('btnSimpanPw');
+        const originalText = btn.textContent;
+        const payload = {
+            password_lama: document.getElementById('pw-lama').value,
+            password_baru: document.getElementById('pw-baru').value,
+            konfirmasi_password: document.getElementById('pw-konfirm').value
+        };
+
+        btn.disabled = true;
+        btn.textContent = 'Menyimpan...';
+
+        try {
+            const res = await fetch('../api/pelamar/password.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify(payload)
+            });
+            const result = await res.json();
+
+            if (!res.ok || !result.success) {
+                showAlert('error', result.message || 'Gagal mengubah password.');
+                btn.disabled = false;
+                btn.textContent = originalText;
+                return;
+            }
+
+            showAlert('success', result.message || 'Password akun berhasil diperbarui!');
+            this.reset();
+        } catch (err) {
+            showAlert('error', 'Terjadi kesalahan koneksi ke server.');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = originalText;
+        }
+    });
 </script>
 
-<?php 
-mysqli_close($conn);
-include '../includes/footer_pelamar.php'; 
+<?php
+include '../includes/footer_pelamar.php';
 ?>
